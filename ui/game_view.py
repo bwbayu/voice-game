@@ -1,7 +1,10 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QPixmap, QPainter
 
 from config import BG_COLOR, TEXT_COLOR, ACCENT_COLOR, STATUS_COLOR, DIM_COLOR
+
+_LABEL_BG = "background-color: rgba(0, 0, 0, 160); padding: 4px 8px; border-radius: 4px;"
 
 
 class GameView(QWidget):
@@ -13,8 +16,23 @@ class GameView(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._bg_pixmap: QPixmap | None = None
         self._build_ui()
         self._apply_styles()
+
+    # ── Background painting ────────────────────────────────────────────────────
+
+    def paintEvent(self, event) -> None:
+        if self._bg_pixmap:
+            painter = QPainter(self)
+            painter.drawPixmap(self.rect(), self._bg_pixmap)
+        super().paintEvent(event)
+
+    def update_bg_image(self, path: str) -> None:
+        """Load a room background image. Silently skips if the file is missing."""
+        px = QPixmap(path)
+        self._bg_pixmap = px if not px.isNull() else None
+        self.update()
 
     # ── Build ─────────────────────────────────────────────────────────────────
 
@@ -26,10 +44,16 @@ class GameView(QWidget):
         # ── Title ──────────────────────────────────────────
         self.lbl_title = QLabel("BLIND DUNGEON")
         self.lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        # ── Spacer ──────────────────────────────────────────
         layout.addWidget(self.lbl_title)
-        layout.addSpacing(40)
+
+        layout.addSpacing(8)
+
+        # ── Player HP (always visible) ───────────────────────
+        self.lbl_player_hp = QLabel("HP: —")
+        self.lbl_player_hp.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.lbl_player_hp)
+
+        layout.addSpacing(24)
 
         # ── Room name ───────────────────────────────────────
         self.lbl_room = QLabel("—")
@@ -80,7 +104,7 @@ class GameView(QWidget):
 
         layout.addSpacing(12)
 
-        # ── Combat status (shown only during combat) ─────────
+        # ── Boss combat HP (shown only during combat) ────────
         self.lbl_combat = QLabel("")
         self.lbl_combat.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_combat.setVisible(False)
@@ -104,35 +128,38 @@ class GameView(QWidget):
         self.setStyleSheet(f"background-color: {BG_COLOR}; color: {TEXT_COLOR};")
 
         self.lbl_title.setStyleSheet(
-            f"font-size: 28px; font-weight: bold; "
-            f"color: {ACCENT_COLOR}; letter-spacing: 6px;"
+            f"font-size: 28px; font-weight: bold; color: {ACCENT_COLOR}; "
+            f"letter-spacing: 6px; {_LABEL_BG}"
+        )
+        self.lbl_player_hp.setStyleSheet(
+            f"font-size: 13px; font-weight: bold; color: {STATUS_COLOR}; {_LABEL_BG}"
         )
         self.lbl_room.setStyleSheet(
-            f"font-size: 20px; font-weight: bold; color: {ACCENT_COLOR};"
+            f"font-size: 20px; font-weight: bold; color: {ACCENT_COLOR}; {_LABEL_BG}"
         )
         self.lbl_exits.setStyleSheet(
-            "font-size: 13px; color: #8888aa; letter-spacing: 1px;"
+            f"font-size: 13px; color: #8888aa; letter-spacing: 1px; {_LABEL_BG}"
         )
         self.lbl_narration.setStyleSheet(
-            "font-size: 13px; font-style: italic; color: #a0a0b8; line-height: 1.6;"
+            f"font-size: 13px; font-style: italic; color: #a0a0b8; {_LABEL_BG}"
         )
         self.lbl_room_items.setStyleSheet(
-            "font-size: 12px; color: #707088;"
+            f"font-size: 12px; color: #707088; {_LABEL_BG}"
         )
         self.lbl_inventory.setStyleSheet(
-            "font-size: 12px; color: #707088;"
+            f"font-size: 12px; color: #707088; {_LABEL_BG}"
         )
         self.lbl_transcript.setStyleSheet(
-            "font-size: 13px; font-style: italic; color: #70c090;"
+            f"font-size: 13px; font-style: italic; color: #70c090; {_LABEL_BG}"
         )
         self.lbl_combat.setStyleSheet(
-            f"font-size: 13px; font-weight: bold; color: {ACCENT_COLOR};"
+            f"font-size: 13px; font-weight: bold; color: {ACCENT_COLOR}; {_LABEL_BG}"
         )
         self.lbl_status.setStyleSheet(
-            f"font-size: 14px; font-style: italic; color: {STATUS_COLOR};"
+            f"font-size: 14px; font-style: italic; color: {STATUS_COLOR}; {_LABEL_BG}"
         )
         self.lbl_hint.setStyleSheet(
-            f"font-size: 11px; color: {DIM_COLOR}; letter-spacing: 2px;"
+            f"font-size: 11px; color: {DIM_COLOR}; letter-spacing: 2px; {_LABEL_BG}"
         )
 
     # ── Slots ─────────────────────────────────────────────────────────────────
@@ -142,8 +169,9 @@ class GameView(QWidget):
         Connected to AppSignals.state_updated.
         payload = {"room": {...}, "exits": {direction: room_id}, "player": {...}}
         """
-        room  = payload["room"]
-        exits = payload["exits"]
+        room   = payload["room"]
+        exits  = payload["exits"]
+        player = payload.get("player", {})
 
         self.lbl_room.setText(room["name"])
 
@@ -154,6 +182,20 @@ class GameView(QWidget):
         else:
             exits_text = "(no exits)"
         self.lbl_exits.setText(f"Exits:  {exits_text}")
+
+        # Player HP
+        hp     = player.get("hp", "—")
+        max_hp = player.get("max_hp", "—")
+        self.lbl_player_hp.setText(f"HP: {hp}/{max_hp}")
+
+        # Room background image
+        bg_image = room.get("bg_image", "")
+        if bg_image:
+            self.update_bg_image(bg_image)
+
+    def update_player_hp(self, hp: int, max_hp: int) -> None:
+        """Direct HP update — called during combat when state_updated is not re-emitted."""
+        self.lbl_player_hp.setText(f"HP: {hp}/{max_hp}")
 
     def set_status(self, text: str) -> None:
         """Connected to status change signals."""
@@ -169,9 +211,8 @@ class GameView(QWidget):
         self.lbl_status.setText("Listening...")
 
     def append_transcript_delta(self, text: str) -> None:
-        """Appends live partial transcription text."""
-        current = self.lbl_transcript.text()
-        self.lbl_transcript.setText(current + text)
+        """Show the latest partial transcript (set semantics — Deepgram sends full partials)."""
+        self.lbl_transcript.setText(text)
 
     def update_narration(self, text: str) -> None:
         """Displays the full narration text. Persists until the next narration replaces it."""
@@ -201,14 +242,13 @@ class GameView(QWidget):
         boss_max: int,
         boss_name: str,
     ) -> None:
-        """Show the combat HP bar during boss fights."""
-        self.lbl_combat.setText(
-            f"You: {player_hp}/{player_max}  \u2756  {boss_name}: {boss_hp}/{boss_max}"
-        )
+        """Show boss HP bar during fights; also update persistent player HP label."""
+        self.lbl_combat.setText(f"{boss_name}: {boss_hp}/{boss_max}")
         self.lbl_combat.setVisible(True)
+        self.lbl_player_hp.setText(f"HP: {player_hp}/{player_max}")
 
     def hide_combat_status(self) -> None:
-        """Hide the combat HP bar when not in combat."""
+        """Hide the boss HP bar when not in combat."""
         self.lbl_combat.setVisible(False)
         self.lbl_combat.setText("")
 

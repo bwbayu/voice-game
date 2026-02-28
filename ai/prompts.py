@@ -11,8 +11,8 @@ def build_narration_system_prompt() -> str:
     return (
         "You are a dungeon master narrating a blind dungeon game. "
         "The player cannot see anything — your words are their only perception. "
-        "Be atmospheric and concise (2–4 sentences). "
-        "Always mention the available exit directions naturally within your description. "
+        "Be atmospheric and concise (1–2 sentences max). "
+        "Mention each available exit direction and any visible items in one brief phrase each. "
         "Speak in second person: 'you see...', 'you hear...', 'you smell...'. "
         "Do not use markdown, lists, or formatting. Do not mention game mechanics or rules."
     )
@@ -47,7 +47,8 @@ def build_narration_user_prompt(
         f"Atmosphere hints: {description_hint}. "
         f"Available exits: {exits_text}. "
         f"{origin_text}"
-        f"{items_text}"
+        f"{items_text} "
+        "Keep the entire narration to 1–2 sentences. Each exit and item gets one brief phrase."
     )
 
 
@@ -57,7 +58,7 @@ def build_win_narration_user_prompt(room_name: str) -> str:
     return (
         f"The player has finally reached {room_name}, the heart of the dungeon. "
         "This is the end of their journey. "
-        "Narrate their triumph in 3–4 atmospheric sentences. "
+        "Narrate their triumph in 2 atmospheric sentences. "
         "The tone should be both ominous and victorious — they survived, "
         "but the dungeon will always remember them."
     )
@@ -76,7 +77,7 @@ def build_boss_entry_user_prompt(
         f"The player {origin} and now stands in {room_name}. "
         f"Atmosphere: {room_hint}. "
         f"{boss_name} is here, blocking the way. "
-        "Write 4–6 sentences of ominous atmosphere. "
+        "Write 2–3 sentences of ominous atmosphere. "
         "Describe the boss's presence dramatically. "
         "Do NOT mention exits or how to leave. "
         "Do NOT mention game mechanics, items, or combat rules. "
@@ -105,7 +106,7 @@ def build_combat_round_user_prompt(
 def build_boss_defeat_user_prompt(boss_name: str) -> str:
     return (
         f"{boss_name} has been defeated — their HP has reached zero. "
-        "Write 3–4 sentences describing the boss falling. "
+        "Write 2 sentences describing the boss falling. "
         "The tone is triumphant but with an undercurrent of dread — "
         "the dungeon feels the loss. Second person. No markdown."
     )
@@ -115,7 +116,7 @@ def build_exit_blocked_user_prompt() -> str:
     return (
         "The player tried to enter the final chamber but cannot — "
         "a guardian still lives somewhere in the dungeon. "
-        "Write 2–3 sentences: the exit is sealed by dark energy, "
+        "Write 1–2 sentences: the exit is sealed by dark energy, "
         "and the player senses an undefeated presence. "
         "Second person. No markdown. No game mechanics."
     )
@@ -141,77 +142,46 @@ def build_boss_taunt_user_prompt(
     )
 
 
-# ── Intent parsing ────────────────────────────────────────────────────────────
+# ── Intent parsing (unified) ──────────────────────────────────────────────────
 
-def build_intent_system_prompt() -> str:
+def build_unified_intent_system_prompt() -> str:
     return (
         "You are an intent parser for a voice-controlled dungeon game. "
-        "The player spoke a command. Extract their movement intent. "
-        "If the player wants to move in a direction that matches one of the available exits, "
-        "set action to 'move' and direction to the exact matching direction string. "
-        "If the intent is unclear or does not match any exit, set action to 'unknown'. "
+        "Given a player's spoken command and the current game context, "
+        "determine what the player wants to do. "
+        "Possible actions: "
+        "'move' — player wants to go somewhere, set direction to the exact exit string; "
+        "'attack' — player wants to fight, set item_id to the weapon id to use "
+        "(if no specific weapon is named, pick the most appropriate one or the first); "
+        "'pickup' — player wants to take an item from the room, set item_id to the item id "
+        "(use semantic matching — 'grab the glowing thing' might match 'Torch'); "
+        "'unknown' — intent is completely unclear or unrelated to any available action. "
+        "Infer intent from natural language — the player will not use exact keywords. "
+        "'go for it', 'let's fight', 'hit it' are attack. "
+        "'head north', 'try the left door' are move. "
+        "'grab that', 'take the sword' are pickup. "
+        "Only return 'unknown' if the speech has no plausible connection to any listed action. "
         "Output a structured JSON response only."
     )
 
 
-def build_intent_user_prompt(
+def build_unified_intent_user_prompt(
     transcript: str,
-    available_directions: list[str],
-) -> str:
-    dirs = ", ".join(f'"{d}"' for d in available_directions)
-    return (
-        f"Player said: \"{transcript}\". "
-        f"Available exit directions: [{dirs}]. "
-        "What direction does the player want to go?"
-    )
-
-
-# ── Phase 2 intent parsing ────────────────────────────────────────────────────
-
-def build_combat_intent_system_prompt() -> str:
-    return (
-        "You are an intent parser for a voice-controlled dungeon combat game. "
-        "The player is in combat and spoke a command. "
-        "Determine which weapon they want to attack with. "
-        "Set action to 'attack' and item_id to the exact id of the chosen weapon. "
-        "If no weapon is mentioned or the intent is unclear, set action to 'unknown'. "
-        "Output a structured JSON response only."
-    )
-
-
-def build_combat_intent_user_prompt(
-    transcript: str,
-    inventory_items: list[dict],
-) -> str:
-    items_text = ", ".join(
-        f'"{i["name"]}" (id: "{i["id"]}")' for i in inventory_items
-    )
-    return (
-        f"Player said: \"{transcript}\". "
-        f"Weapons in inventory: [{items_text}]. "
-        "Which weapon does the player want to attack with?"
-    )
-
-
-def build_pickup_intent_system_prompt() -> str:
-    return (
-        "You are an intent parser for a voice-controlled dungeon game. "
-        "The player spoke a command. Determine which item they want to pick up. "
-        "Set action to 'pickup' and item_id to the exact id of the chosen item. "
-        "If no item matches or the intent is unclear, set action to 'unknown'. "
-        "Output a structured JSON response only."
-    )
-
-
-def build_pickup_intent_user_prompt(
-    transcript: str,
+    exits: list[str],
+    weapons: list[dict],
     room_items: list[dict],
 ) -> str:
-    items_text = ", ".join(
+    exits_text   = ", ".join(f'"{d}"' for d in exits)         or "none"
+    weapons_text = ", ".join(
+        f'"{i["name"]}" (id: "{i["id"]}")' for i in weapons
+    ) or "none"
+    items_text   = ", ".join(
         f'"{i["name"]}" (id: "{i["id"]}")' for i in room_items
-    )
+    ) or "none"
     return (
         f"Player said: \"{transcript}\". "
-        f"Items in this room: [{items_text}]. "
-        "Which item does the player want to pick up?"
+        f"Available exits: [{exits_text}]. "
+        f"Weapons in inventory: [{weapons_text}]. "
+        f"Items on the floor: [{items_text}]. "
+        "What does the player want to do?"
     )

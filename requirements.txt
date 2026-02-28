@@ -6,3 +6,4 @@ pyaudio
 numpy
 pygame
 websockets
+deepgram-sdk

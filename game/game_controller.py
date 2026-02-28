@@ -12,6 +12,7 @@ from ai.mistral_client import MistralClient
 from ai.narrator import Narrator
 from ai.tts_client import TTSClient
 from audio.audio_manager import AudioManager
+from audio.deepgram_stt import DeepgramSTTWorker
 from config import (
     GAME_STATE_FILE, MAP_FILE, SAMPLE_RATE, CHUNK_DURATION_MS, STT_MODEL,
     ITEMS_FILE, BOSSES_FILE, BOSSES_AUDIO_DIR,
@@ -259,11 +260,19 @@ class GameController(QObject):
         """
         Called once from main.py via QTimer after the event loop starts.
         Emits initial state and triggers narration for the starting room.
+        If the saved state puts the player inside an uncleared boss room,
+        combat is resumed immediately.
         """
         self._emit_state()
         self._emit_room_items()
         self._emit_inventory()
-        self._trigger_narration()
+
+        room_id = self._state.current_room_id
+        boss_id = self._dungeon.get_boss_id(room_id)
+        if boss_id and not self._state.is_boss_cleared(boss_id):
+            self._start_combat(boss_id, room_id)
+        else:
+            self._trigger_narration()
 
     def on_recording_started(self) -> None:
         """Called from MainWindow.keyPressEvent when Space is pressed."""
@@ -271,9 +280,8 @@ class GameController(QObject):
             return
         self._is_recording = True
         self._stt_stop_event = threading.Event()
-        self._stt_worker = RealtimeSTTWorker(
-            self._mistral.api_key, self._stt_stop_event
-        )
+        # self._stt_worker = RealtimeSTTWorker(self._mistral.api_key, self._stt_stop_event)  # Mistral STT (kept for reference)
+        self._stt_worker = DeepgramSTTWorker(self._stt_stop_event)
         self._stt_worker.transcript_delta.connect(self._on_transcript_delta)
         self._stt_worker.transcript_ready.connect(self._on_transcript_ready)
         self._stt_worker.error.connect(self._on_stt_error)
@@ -302,6 +310,7 @@ class GameController(QObject):
             "player": {
                 "current_room": room_id,
                 "hp":           self._state.hp,
+                "max_hp":       self._state.max_hp,
                 "inventory":    self._state.inventory,
             },
         }
@@ -528,18 +537,18 @@ class GameController(QObject):
     def _on_transcript_ready(self, transcript: str) -> None:
         logging.debug(f"GameController: transcript='{transcript}'")
 
-        if self._in_combat:
-            action = self._intent_parser.parse_combat(
-                transcript, self._inventory_as_dicts()
+        room_id    = self._state.current_room_id
+        exits      = self._dungeon.get_exit_names(room_id) if not self._in_combat else []
+        weapons    = [i for i in self._inventory_as_dicts() if i.get("type") == "weapon"] if self._in_combat else []
+        room_items = self._room_items_as_dicts(room_id) if not self._in_combat else []
+        if self._in_combat and not weapons:
+            self._signals.processing_finished.emit()
+            self._signals.error_occurred.emit(
+                "You have no weapons! Find a weapon before you can fight."
             )
-        else:
-            directions = self._dungeon.get_exit_names(self._state.current_room_id)
-            action     = self._intent_parser.parse(transcript, directions)
-            if action.action == "unknown":
-                room_items = self._room_items_as_dicts(self._state.current_room_id)
-                if room_items:
-                    action = self._intent_parser.parse_pickup(transcript, room_items)
+            return
 
+        action = self._intent_parser.parse(transcript, exits, weapons, room_items)
         self._handle_action(action)
 
     def _on_stt_error(self, msg: str) -> None:

@@ -1,27 +1,14 @@
 {
   "player": {
-    "current_room": "c",
+    "current_room": "home",
     "hp": 100,
     "max_hp": 100,
     "inventory": [],
-    "last_action": "moved west"
+    "last_action": "game started"
   },
   "world": {
     "cleared_bosses": [],
-    "room_items": {
-      "a": [
-        "bone_club"
-      ],
-      "b": [
-        "iron_sword"
-      ],
-      "c": [
-        "cursed_dagger"
-      ],
-      "d": [
-        "battle_axe"
-      ]
-    },
+    "room_items": {},
     "boss_hp": {},
     "monster_positions": {},
     "unlocked_rooms": []
@@ -29,6 +16,6 @@
   "meta": {
     "theme": "dungeon",
     "difficulty": "medium",
-    "session_start": "2026-02-28T14:55:57.988505+00:00"
+    "session_start": "2026-02-28T19:31:31.342071+00:00"
   }
 }

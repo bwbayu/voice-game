@@ -5,7 +5,8 @@ ROOT_DIR  = Path(__file__).parent
 MAPS_DIR  = ROOT_DIR / "maps"
 STATE_DIR = ROOT_DIR / "state"
 AUDIO_DIR = ROOT_DIR / "audio" / "bg"
-DATA_DIR  = ROOT_DIR / "data"
+DATA_DIR   = ROOT_DIR / "data"
+ASSETS_DIR = ROOT_DIR / "assets"
 
 # ── File paths ────────────────────────────────────────
 MAP_FILE        = MAPS_DIR / "dungeon_map.json"

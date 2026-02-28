@@ -8,7 +8,6 @@ class CombatResult:
     boss_damage:   int   # damage dealt to player (skill.damage)
     skill_id:      str
     skill_name:    str
-    taunt_hint:    str
 
 
 class CombatManager:
@@ -24,5 +23,4 @@ class CombatManager:
             boss_damage=skill["damage"],
             skill_id=skill["id"],
             skill_name=skill["name"],
-            taunt_hint=skill["taunt_hint"],
         )
