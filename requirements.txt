@@ -1,4 +1,4 @@
-mistralai
-python-dotenv
-openai
-PyQt6
+mistralai>=1.12.4
+openai>=2.24.0
+pyqt6==6.9.0
+python-dotenv>=1.2.1
