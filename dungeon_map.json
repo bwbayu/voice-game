@@ -7,7 +7,8 @@
         "kiri": "a",
         "kanan": "b"
       },
-      "items": ["obor_redup", "catatan_penjaga"]
+      "items": ["obor_redup", "catatan_penjaga"],
+      "bg_image":"assets/image/home.png"
     },
     "a": {
       "name": "Aula Prajurit Gugur",
@@ -18,7 +19,8 @@
         "selatan": "boss",
         "bawah": "t"
       },
-      "items": ["peta_usang", "zirah_retak"]
+      "items": ["peta_usang", "zirah_retak"],
+      "bg_image":"assets/image/a.png"
     },
     "b": {
       "name": "Ruang Perpustakaan Terlarang",
@@ -28,7 +30,8 @@
         "barat": "a",
         "bawah": "boss"
       },
-      "items": ["buku_mantra_dasar", "lilin_ajaib"]
+      "items": ["buku_mantra_dasar", "lilin_ajaib"],
+      "bg_image":"assets/image/b.png"
     },
     "boss": {
       "name": "Singgasana Sang Penjaga",
@@ -40,7 +43,8 @@
         "timur": "d",
         "bawah": "t"
       },
-      "items": ["kunci_obsidian", "fragmen_mahkota", "darah_penjaga"]
+      "items": ["kunci_obsidian", "fragmen_mahkota", "darah_penjaga"],
+      "bg_image":"assets/image/boss.png"
     },
     "c": {
       "name": "Penjara Bawah Tanah",
@@ -49,7 +53,8 @@
         "timur": "boss",
         "bawah": "t"
       },
-      "items": ["kunci_sel_berkarat", "tulang_tahanan"]
+      "items": ["kunci_sel_berkarat", "tulang_tahanan"],
+      "bg_image":"assets/image/c.png"
     },
     "d": {
       "name": "Gudang Senjata Terlupakan",
@@ -57,7 +62,8 @@
       "exits": {
         "bawah": "t"
       },
-      "items": ["pedang_patah", "peti_tersegel"]
+      "items": ["pedang_patah", "peti_tersegel"],
+      "bg_image":"assets/image/d.png"
     },
     "t": {
       "name": "Ruang Inti Kegelapan",
@@ -68,7 +74,8 @@
         "utara-timur": "d",
         "atas-timur": "a"
       },
-      "items": ["kristal_inti", "cermin_kegelapan", "jejak_kuno"]
+      "items": ["kristal_inti", "cermin_kegelapan", "jejak_kuno"],
+      "bg_image":"assets/image/t.png"
     }
   }
 }
