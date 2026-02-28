@@ -1,8 +1,11 @@
 {
   "player": {
-    "current_room": "a",
-    "inventory": [],
+    "current_room": "boss",
+    "inventory": [
+      "catatan_penjaga",
+      "peta_usang"
+    ],
     "health": 100,
-    "last_action": "bergerak ke arah kiri"
+    "last_action": "bergerak ke arah selatan"
   }
 }
