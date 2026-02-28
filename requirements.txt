@@ -2,3 +2,4 @@ mistralai
 python-dotenv
 openai
 PyQt6
+elevenlabs
