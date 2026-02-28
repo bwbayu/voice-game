@@ -1,0 +1,8 @@
+{
+  "player": {
+    "current_room": "a",
+    "inventory": [],
+    "health": 100,
+    "last_action": "bergerak ke arah kiri"
+  }
+}

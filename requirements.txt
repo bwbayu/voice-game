@@ -1,2 +1,4 @@
 mistralai
 python-dotenv
+openai
+PyQt6
