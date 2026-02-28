@@ -77,6 +77,13 @@ class MainWindow(QMainWindow):
         self._signals.error_occurred.connect(self._on_error)
         self._signals.game_won.connect(self._on_game_won)
 
+        # Phase 2 — combat + items
+        self._signals.combat_started.connect(self._on_combat_started)
+        self._signals.combat_updated.connect(self._on_combat_updated)
+        self._signals.combat_ended.connect(self._game_view.hide_combat_status)
+        self._signals.inventory_updated.connect(self._game_view.update_inventory)
+        self._signals.room_items_changed.connect(self._game_view.update_room_items)
+
     # ── Key events (hold-to-talk) ─────────────────────────────────────────────
 
     def keyPressEvent(self, event) -> None:
@@ -130,5 +137,32 @@ class MainWindow(QMainWindow):
         # Reset game state for a new run
         self._controller._state.reset()
         self._controller._previous_room_name = None
+        self._controller._in_combat = False
+        self._controller._current_boss = None
         self._controller._emit_state()
+        self._game_view.hide_combat_status()
+        self._game_view.update_inventory([])
+        self._game_view.update_room_items([])
         self._game_view.set_status("Ready  —  Hold [SPACE] to speak")
+
+    def _on_combat_started(self, payload: dict) -> None:
+        """Show combat HP when entering a boss room."""
+        self._game_view.show_combat_status(
+            player_hp=payload["player_hp"],
+            player_max=payload["player_max_hp"],
+            boss_hp=payload["boss_hp"],
+            boss_max=payload["boss_max_hp"],
+            boss_name=payload["name"],
+        )
+        self._game_view.set_status("IN COMBAT  —  Hold [SPACE] to attack")
+
+    def _on_combat_updated(self, payload: dict) -> None:
+        """Refresh combat HP display after each round."""
+        boss_name = self._controller._current_boss["name"] if self._controller._current_boss else "Boss"
+        self._game_view.show_combat_status(
+            player_hp=payload["player_hp"],
+            player_max=payload["player_max_hp"],
+            boss_hp=payload["boss_hp"],
+            boss_max=payload["boss_max_hp"],
+            boss_name=boss_name,
+        )

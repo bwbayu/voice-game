@@ -1,0 +1,8 @@
+{
+  "items": [
+    {"id": "iron_sword",    "name": "Iron Sword",    "damage": 25, "type": "weapon", "description": "A battered iron sword, still sharp enough to draw blood",      "rarity": "common"},
+    {"id": "battle_axe",    "name": "Battle Axe",    "damage": 40, "type": "weapon", "description": "A heavy double-headed axe, its edge still gleaming",           "rarity": "rare"},
+    {"id": "cursed_dagger", "name": "Cursed Dagger", "damage": 35, "type": "weapon", "description": "A dagger with a dark aura, warm to the touch",                 "rarity": "uncommon"},
+    {"id": "bone_club",     "name": "Bone Club",     "damage": 20, "type": "weapon", "description": "A crude club fashioned from a femur; primitive but effective",  "rarity": "common"}
+  ]
+}

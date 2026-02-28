@@ -1,14 +1,28 @@
 {
   "player": {
-    "current_room": "boss",
+    "current_room": "c",
     "hp": 100,
     "max_hp": 100,
     "inventory": [],
-    "last_action": "moved down"
+    "last_action": "moved west"
   },
   "world": {
     "cleared_bosses": [],
-    "room_items": {},
+    "room_items": {
+      "a": [
+        "bone_club"
+      ],
+      "b": [
+        "iron_sword"
+      ],
+      "c": [
+        "cursed_dagger"
+      ],
+      "d": [
+        "battle_axe"
+      ]
+    },
+    "boss_hp": {},
     "monster_positions": {},
     "unlocked_rooms": []
   },

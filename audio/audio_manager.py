@@ -6,7 +6,8 @@ import pygame
 from config import AUDIO_DIR, BG_VOLUME
 
 # pygame mixer channel assignments
-_CH_TTS = 1   # one-shot TTS clips
+_CH_TTS = 1   # one-shot TTS narration clips
+_CH_SFX = 2   # short skill stingers (plays concurrently with TTS)
 
 
 class AudioManager:
@@ -59,6 +60,20 @@ class AudioManager:
             logging.debug(f"AudioManager: playing clip '{file_path}'")
         except Exception as e:
             logging.error(f"AudioManager: failed to play clip '{file_path}': {e}")
+
+    def play_sfx(self, file_path: str) -> None:
+        """
+        Play a short sound effect on the SFX channel without interrupting TTS.
+        Used for boss skill stingers during combat.
+        """
+        ch = pygame.mixer.Channel(_CH_SFX)
+        ch.stop()
+        try:
+            sound = pygame.mixer.Sound(file_path)
+            ch.play(sound)
+            logging.debug(f"AudioManager: playing sfx '{file_path}'")
+        except Exception as e:
+            logging.error(f"AudioManager: failed to play sfx '{file_path}': {e}")
 
     # ── Control ───────────────────────────────────────────────────────────────
 

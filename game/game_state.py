@@ -17,6 +17,7 @@ _DEFAULT_STATE = {
     "world": {
         "cleared_bosses": [],
         "room_items": {},
+        "boss_hp": {},
         "monster_positions": {},
         "unlocked_rooms": [],
     },
@@ -98,8 +99,55 @@ class GameState:
 
     # ── World read helpers ────────────────────────────────────────────────────
 
-    def is_boss_cleared(self, room_id: str) -> bool:
-        return room_id in self._data["world"]["cleared_bosses"]
+    def is_boss_cleared(self, boss_id: str) -> bool:
+        return boss_id in self._data["world"]["cleared_bosses"]
+
+    # ── Room items ────────────────────────────────────────────────────────────
+
+    def get_room_items(self, room_id: str) -> list[str]:
+        """Return list of item_ids currently in the given room."""
+        return list(self._data["world"]["room_items"].get(room_id, []))
+
+    def set_room_items(self, room_id: str, items: list[str]) -> None:
+        self._data["world"]["room_items"][room_id] = items
+
+    def remove_room_item(self, room_id: str, item_id: str) -> None:
+        items = self._data["world"]["room_items"].get(room_id, [])
+        if item_id in items:
+            items.remove(item_id)
+        self._data["world"]["room_items"][room_id] = items
+
+    def needs_item_scatter(self) -> bool:
+        """True when room_items has never been populated (first run)."""
+        return not bool(self._data["world"].get("room_items"))
+
+    # ── Inventory ─────────────────────────────────────────────────────────────
+
+    def add_to_inventory(self, item_id: str) -> bool:
+        """Add item_id to inventory. Returns False if at INVENTORY_CAP."""
+        from config import INVENTORY_CAP
+        inv = self._data["player"]["inventory"]
+        if len(inv) >= INVENTORY_CAP:
+            return False
+        inv.append(item_id)
+        return True
+
+    def remove_from_inventory(self, item_id: str) -> None:
+        inv = self._data["player"]["inventory"]
+        if item_id in inv:
+            inv.remove(item_id)
+
+    # ── Boss HP ───────────────────────────────────────────────────────────────
+
+    def get_boss_hp(self, boss_id: str, max_hp: int) -> int:
+        """Return current HP for boss_id, initialising to max_hp if absent."""
+        boss_hp_map = self._data["world"].setdefault("boss_hp", {})
+        if boss_id not in boss_hp_map:
+            boss_hp_map[boss_id] = max_hp
+        return boss_hp_map[boss_id]
+
+    def set_boss_hp(self, boss_id: str, hp: int) -> None:
+        self._data["world"].setdefault("boss_hp", {})[boss_id] = hp
 
     # ── Player mutations ──────────────────────────────────────────────────────
 
@@ -110,10 +158,10 @@ class GameState:
     def set_last_action(self, description: str) -> None:
         self._data["player"]["last_action"] = description
 
-    def mark_boss_cleared(self, room_id: str) -> None:
+    def mark_boss_cleared(self, boss_id: str) -> None:
         cleared = self._data["world"]["cleared_bosses"]
-        if room_id not in cleared:
-            cleared.append(room_id)
+        if boss_id not in cleared:
+            cleared.append(boss_id)
 
     # ── Snapshot ──────────────────────────────────────────────────────────────
 

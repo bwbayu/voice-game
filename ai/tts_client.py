@@ -26,13 +26,15 @@ class TTSClient:
         self._client = OpenAI(api_key=api_key)
         logging.info("TTSClient: initialised.")
 
-    def speak(self, text: str) -> str:
+    def speak(self, text: str, voice: str | None = None) -> str:
         """
         Generate speech for text using OpenAI TTS.
         Returns the path to a named temporary WAV file.
 
         The file is created with delete=False so it persists after close().
         The caller must delete it when audio playback is complete.
+
+        voice: optional override for the default TTS_VOICE (e.g. boss voices).
         """
         if not text.strip():
             raise ValueError("TTSClient.speak: received empty text.")
@@ -42,7 +44,7 @@ class TTSClient:
 
         response = self._client.audio.speech.create(
             model=TTS_MODEL,
-            voice=TTS_VOICE,
+            voice=voice or TTS_VOICE,
             input=text,
             response_format=TTS_FORMAT,
         )

@@ -10,7 +10,8 @@
       "exits": {
         "left": "a",
         "right": "b"
-      }
+      },
+      "bg_image":"assets/image/home.png"
     },
     "a": {
       "id": "a",
@@ -22,7 +23,8 @@
         "north": "b",
         "south": "boss",
         "down": "t"
-      }
+      },
+      "bg_image":"assets/image/a.png"
     },
     "b": {
       "id": "b",
@@ -33,11 +35,13 @@
         "back": "home",
         "west": "a",
         "down": "boss"
-      }
+      },
+      "bg_image":"assets/image/b.png"
     },
     "boss": {
       "id": "boss",
       "type": "boss",
+      "boss_id": "guardian",
       "name": "The Guardian's Throne",
       "description_hint": "vaulted chamber with a ceiling lost in darkness, obsidian throne surrounded by massive claw marks scratched into the stone floor, five passages leading outward",
       "exits": {
@@ -46,7 +50,8 @@
         "west": "c",
         "east": "d",
         "down": "t"
-      }
+      },
+      "bg_image":"assets/image/boss.png"
     },
     "c": {
       "id": "c",
@@ -56,7 +61,8 @@
       "exits": {
         "east": "boss",
         "down": "t"
-      }
+      },
+      "bg_image":"assets/image/c.png"
     },
     "d": {
       "id": "d",
@@ -65,7 +71,8 @@
       "description_hint": "racks of broken swords and shattered shields, a small iron chest with a red wax seal sitting untouched in the far corner",
       "exits": {
         "down": "t"
-      }
+      },
+      "bg_image":"assets/image/d.png"
     },
     "t": {
       "id": "t",
@@ -77,7 +84,8 @@
         "north": "c",
         "northeast": "d",
         "upper-east": "a"
-      }
+      },
+      "bg_image":"assets/image/t.png"
     }
   }
 }

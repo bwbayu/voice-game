@@ -1,0 +1,16 @@
+{
+  "bosses": [
+    {
+      "id": "guardian",
+      "name": "The Dark Guardian",
+      "hp": 120,
+      "max_hp": 120,
+      "openai_voice": "fable",
+      "skills": [
+        {"id": "stone_crush", "name": "Stone Crush", "damage": 20},
+        {"id": "shadow_bolt", "name": "Shadow Bolt", "damage": 30},
+        {"id": "iron_grasp",  "name": "Iron Grasp",  "damage": 15}
+      ]
+    }
+  ]
+}

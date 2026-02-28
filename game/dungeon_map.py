@@ -92,6 +92,14 @@ class DungeonMap:
             if target_id in self._rooms
         }
 
+    def get_boss_id(self, room_id: str) -> str | None:
+        """Return the boss_id for a room, or None if the room has no boss."""
+        return self._rooms.get(room_id, {}).get("boss_id")
+
+    def get_all_boss_room_ids(self) -> list[str]:
+        """Return IDs of all rooms with type == 'boss'."""
+        return [rid for rid, r in self._rooms.items() if r.get("type") == "boss"]
+
     @property
     def theme(self) -> str:
         return self._data.get("theme", "dungeon")

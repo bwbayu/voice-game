@@ -53,6 +53,22 @@ class GameView(QWidget):
         self.lbl_narration.setWordWrap(True)
         layout.addWidget(self.lbl_narration)
 
+        layout.addSpacing(12)
+
+        # ── Room items ───────────────────────────────────────
+        self.lbl_room_items = QLabel("")
+        self.lbl_room_items.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_room_items.setWordWrap(True)
+        layout.addWidget(self.lbl_room_items)
+
+        layout.addSpacing(4)
+
+        # ── Inventory ────────────────────────────────────────
+        self.lbl_inventory = QLabel("Inventory:  [empty]")
+        self.lbl_inventory.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_inventory.setWordWrap(True)
+        layout.addWidget(self.lbl_inventory)
+
         layout.addStretch()
 
         # ── Live transcript (shown while listening) ──────────
@@ -63,6 +79,14 @@ class GameView(QWidget):
         layout.addWidget(self.lbl_transcript)
 
         layout.addSpacing(12)
+
+        # ── Combat status (shown only during combat) ─────────
+        self.lbl_combat = QLabel("")
+        self.lbl_combat.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_combat.setVisible(False)
+        layout.addWidget(self.lbl_combat)
+
+        layout.addSpacing(6)
 
         # ── Status ──────────────────────────────────────────
         self.lbl_status = QLabel("Initializing...")
@@ -92,8 +116,17 @@ class GameView(QWidget):
         self.lbl_narration.setStyleSheet(
             "font-size: 13px; font-style: italic; color: #a0a0b8; line-height: 1.6;"
         )
+        self.lbl_room_items.setStyleSheet(
+            "font-size: 12px; color: #707088;"
+        )
+        self.lbl_inventory.setStyleSheet(
+            "font-size: 12px; color: #707088;"
+        )
         self.lbl_transcript.setStyleSheet(
             "font-size: 13px; font-style: italic; color: #70c090;"
+        )
+        self.lbl_combat.setStyleSheet(
+            f"font-size: 13px; font-weight: bold; color: {ACCENT_COLOR};"
         )
         self.lbl_status.setStyleSheet(
             f"font-size: 14px; font-style: italic; color: {STATUS_COLOR};"
@@ -143,6 +176,41 @@ class GameView(QWidget):
     def update_narration(self, text: str) -> None:
         """Displays the full narration text. Persists until the next narration replaces it."""
         self.lbl_narration.setText(text)
+
+    def update_room_items(self, items: list[dict]) -> None:
+        """Update the room items label. items is a list of item dicts."""
+        if items:
+            names = "  |  ".join(i["name"] for i in items)
+            self.lbl_room_items.setText(f"Items here:  {names}")
+        else:
+            self.lbl_room_items.setText("")
+
+    def update_inventory(self, items: list[dict]) -> None:
+        """Update the inventory label. items is a list of item dicts."""
+        if items:
+            names = "  |  ".join(i["name"] for i in items)
+            self.lbl_inventory.setText(f"Inventory:  {names}")
+        else:
+            self.lbl_inventory.setText("Inventory:  [empty]")
+
+    def show_combat_status(
+        self,
+        player_hp: int,
+        player_max: int,
+        boss_hp: int,
+        boss_max: int,
+        boss_name: str,
+    ) -> None:
+        """Show the combat HP bar during boss fights."""
+        self.lbl_combat.setText(
+            f"You: {player_hp}/{player_max}  \u2756  {boss_name}: {boss_hp}/{boss_max}"
+        )
+        self.lbl_combat.setVisible(True)
+
+    def hide_combat_status(self) -> None:
+        """Hide the combat HP bar when not in combat."""
+        self.lbl_combat.setVisible(False)
+        self.lbl_combat.setText("")
 
     def _hide_transcript(self) -> None:
         self.lbl_transcript.setVisible(False)
