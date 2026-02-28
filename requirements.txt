@@ -2,4 +2,6 @@ mistralai
 python-dotenv
 openai
 PyQt6
-elevenlabs
+pyaudio
+numpy
+pygame
