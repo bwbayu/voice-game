@@ -42,3 +42,6 @@ class AppSignals(QObject):
 
     # Phase 3 — death
     game_over          = pyqtSignal(str, str)   # (narration_text, wav_path)
+
+    # Phase 3.2 — debug map panel
+    map_state_changed  = pyqtSignal(dict)   # full world snapshot for MapPanel

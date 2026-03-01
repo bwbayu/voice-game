@@ -262,6 +262,10 @@ class GameController(QObject):
 
     # ── Public API ────────────────────────────────────────────────────────────
 
+    def reset_game_state(self) -> None:
+        """Reset to defaults on clean exit — next launch will re-scatter everything."""
+        self._state.reset()
+
     def start_game(self) -> None:
         """
         Called once from main.py via QTimer after the event loop starts.
@@ -275,6 +279,8 @@ class GameController(QObject):
 
         if self._state.needs_monster_scatter():
             self._scatter_monsters()
+
+        self._emit_map()
 
         room_id = self._state.current_room_id
         boss_id = self._dungeon.get_boss_id(room_id)
@@ -334,6 +340,45 @@ class GameController(QObject):
         """Emit inventory_updated with current equipment payload."""
         self._signals.inventory_updated.emit(self._equipment_payload())
 
+    def _emit_map(self) -> None:
+        """Emit full map state: player location, items, monsters, boss status per room."""
+        monster_positions = self._state.get_monster_positions()
+        monsters_by_room: dict[str, list[str]] = {}
+        for mid, rid in monster_positions.items():
+            monsters_by_room.setdefault(rid, []).append(mid)
+
+        unlocked = set(self._state.unlocked_rooms)
+        rooms_payload: dict[str, dict] = {}
+
+        for room_id in self._dungeon.all_room_ids:
+            item_names = [
+                self._item_registry[iid]["name"]
+                for iid in self._state.get_room_items(room_id)
+                if iid in self._item_registry
+            ]
+            monster_names = [
+                self._monster_registry[mid]["name"]
+                for mid in monsters_by_room.get(room_id, [])
+                if mid in self._monster_registry
+            ]
+            boss_id      = self._dungeon.get_boss_id(room_id)
+            boss_name    = self._boss_registry[boss_id]["name"] if boss_id else None
+            boss_cleared = self._state.is_boss_cleared(boss_id) if boss_id else False
+            is_locked    = self._dungeon.is_locked(room_id) and room_id not in unlocked
+
+            rooms_payload[room_id] = {
+                "items":        item_names,
+                "monsters":     monster_names,
+                "boss":         boss_name,
+                "boss_cleared": boss_cleared,
+                "locked":       is_locked,
+            }
+
+        self._signals.map_state_changed.emit({
+            "player_room": self._state.current_room_id,
+            "rooms":       rooms_payload,
+        })
+
     def _equipment_payload(self) -> dict:
         """Build the dict payload for inventory_updated: {equipped, bag}."""
         eq_ids = self._state.equipped
@@ -373,6 +418,7 @@ class GameController(QObject):
             current = self._state.get_room_items(room)
             self._state.set_room_items(room, current + [item_id])
         self._state.save()
+        self._emit_map()
         logging.info(
             f"GameController: scattered {len(items)} items across {len(eligible)} rooms."
         )
@@ -382,6 +428,7 @@ class GameController(QObject):
         monster_ids = list(self._monster_registry.keys())
         self._monster_manager.scatter(monster_ids, self._dungeon, self._state)
         self._state.save()
+        self._emit_map()
         logging.info(f"GameController: scattered monsters {monster_ids}")
 
     # ── Boss audio validation ─────────────────────────────────────────────────
@@ -569,7 +616,7 @@ class GameController(QObject):
         room_id    = self._state.current_room_id
         exits      = self._dungeon.get_exit_names(room_id)
         weapons    = [i for i in self._inventory_as_dicts() if i.get("type") == "weapon"] if self._in_combat else []
-        room_items = self._room_items_as_dicts(room_id) if not self._in_combat else []
+        room_items = self._room_items_as_dicts(room_id)
         action = self._intent_parser.parse(transcript, exits, weapons, room_items)
         self._handle_action(action)
 
@@ -636,6 +683,7 @@ class GameController(QObject):
                 self._emit_state()
                 self._emit_room_items()
                 self._signals.inventory_updated.emit(self._equipment_payload())
+                self._emit_map()
                 self._trigger_unlock_narration(target_id)
                 return
             else:
@@ -651,6 +699,8 @@ class GameController(QObject):
             self._state.set_last_action(f"moved {direction}")
             self._state.save()
             self._emit_state()
+            self._emit_room_items()
+            self._emit_map()
             self._start_combat(boss_id, target_id)
             return
 
@@ -666,6 +716,7 @@ class GameController(QObject):
         self._state.save()
         self._emit_state()
         self._emit_room_items()
+        self._emit_map()
 
         new_room = self._dungeon.get_room(target_id)
 
@@ -677,6 +728,7 @@ class GameController(QObject):
         # 6. Move monsters + check encounter
         self._monster_manager.move_all(self._dungeon, self._state)
         self._state.save()
+        self._emit_map()
         monsters_here = self._state.get_monsters_in_room(target_id)
         if monsters_here:
             self._start_monster_combat(monsters_here[0], target_id)
@@ -712,6 +764,7 @@ class GameController(QObject):
             self._state.save()
             self._signals.inventory_updated.emit(self._equipment_payload())
             self._signals.room_items_changed.emit(self._room_items_as_dicts(room_id))
+            self._emit_map()
             self._trigger_pickup_narration(item["name"])
 
         elif item_type in ("weapon", "armor"):
@@ -726,6 +779,7 @@ class GameController(QObject):
             self._state.save()
             self._signals.inventory_updated.emit(self._equipment_payload())
             self._signals.room_items_changed.emit(self._room_items_as_dicts(room_id))
+            self._emit_map()
             if old_id and old_id in self._item_registry:
                 self._trigger_swap_narration(item["name"], self._item_registry[old_id]["name"])
             else:
@@ -738,6 +792,7 @@ class GameController(QObject):
             self._state.save()
             self._emit_state()
             self._signals.room_items_changed.emit(self._room_items_as_dicts(room_id))
+            self._emit_map()
             self._trigger_potion_narration(item["name"], gained, self._state.hp, self._state.max_hp)
 
         else:
@@ -824,6 +879,7 @@ class GameController(QObject):
         boss_id = self._current_enemy["id"]
         self._state.mark_boss_cleared(boss_id)
         self._state.save()
+        self._emit_map()
         self._trigger_boss_defeat_narration()
         # _in_combat and _current_enemy are cleared in _on_boss_defeat_narration_done
 
@@ -832,6 +888,7 @@ class GameController(QObject):
         monster_id = self._current_enemy["id"]
         self._state.remove_monster(monster_id)
         self._state.save()
+        self._emit_map()
         self._trigger_monster_defeat_narration()
         # _in_combat and _current_enemy are cleared in _on_monster_defeat_narration_done
 

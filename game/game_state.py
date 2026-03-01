@@ -1,5 +1,4 @@
 import json
-import os
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
@@ -92,10 +91,8 @@ class GameState:
         self._write()
 
     def _write(self) -> None:
-        tmp = self._path.with_suffix(".tmp")
-        with open(tmp, "w", encoding="utf-8") as f:
+        with open(self._path, "w", encoding="utf-8") as f:
             json.dump(self._data, f, indent=2, ensure_ascii=False)
-        os.replace(tmp, self._path)
 
     def _touch_session_start(self) -> None:
         self._data["meta"]["session_start"] = (

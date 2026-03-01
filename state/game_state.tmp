@@ -1,55 +1,57 @@
 {
   "player": {
-    "current_room": "boss",
-    "hp": 100,
+    "current_room": "a",
+    "hp": 75,
     "max_hp": 100,
+    "last_action": "moved north",
+    "bag": [],
     "equipped": {
       "weapon": "bare_hands",
       "helmet": null,
-      "suit": null,
+      "suit": "chain_mail",
       "legs": null,
       "shoes": null,
       "cloak": null,
       "shield": null
-    },
-    "bag": [],
-    "last_action": "moved south"
+    }
   },
   "world": {
     "cleared_bosses": [],
     "room_items": {
       "a": [
-        "cursed_dagger",
-        "iron_sword",
-        "health_potion"
-      ],
-      "b": [
         "shadow_boots",
         "leather_greaves",
-        "iron_helm"
+        "bone_club"
+      ],
+      "b": [
+        "prison_key",
+        "tattered_cloak"
       ],
       "c": [
-        "tattered_cloak",
-        "bone_club",
-        "cracked_shield"
+        "cursed_dagger",
+        "cracked_shield",
+        "iron_helm"
       ],
       "d": [
-        "chain_mail",
-        "battle_axe",
-        "prison_key"
+        "iron_sword",
+        "battle_axe"
       ]
     },
-    "boss_hp": {},
-    "monster_hp": {},
+    "boss_hp": {
+      "guardian": 110
+    },
+    "monster_hp": {
+      "shade": 50
+    },
     "monster_positions": {
       "shade": "b",
-      "crawler": "d"
+      "crawler": "a"
     },
     "unlocked_rooms": []
   },
   "meta": {
     "theme": "dungeon",
     "difficulty": "medium",
-    "session_start": "2026-03-01T07:45:49.070999+00:00"
+    "session_start": "2026-03-01T04:20:00.006601+00:00"
   }
 }

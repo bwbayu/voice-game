@@ -72,6 +72,7 @@
       "name": "The Forgotten Armory",
       "description_hint": "racks of broken swords and shattered shields, a small iron chest with a red wax seal sitting untouched in the far corner",
       "exits": {
+        "north": "boss",
         "down": "t"
       },
       "bg_image":"assets/image/d.png"

@@ -1,10 +1,11 @@
 import logging
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QMainWindow, QMessageBox, QWidget, QVBoxLayout
+from PyQt6.QtWidgets import QMainWindow, QMessageBox, QWidget, QHBoxLayout
 
 from config import BG_COLOR, TEXT_COLOR
 from ui.game_view import GameView
+from ui.map_panel import MapPanel
 from ui.signals import AppSignals
 
 
@@ -32,17 +33,21 @@ class MainWindow(QMainWindow):
         self._recording  = False
 
         self.setWindowTitle("Blind Dungeon")
-        self.setMinimumSize(700, 500)
+        self.setMinimumSize(1200, 650)
         self.setStyleSheet(f"background-color: {BG_COLOR}; color: {TEXT_COLOR};")
 
-        # Central widget
+        # Central widget — game view (left, stretches) + map panel (right, fixed width)
         central = QWidget()
         self.setCentralWidget(central)
-        layout = QVBoxLayout(central)
+        layout = QHBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
         self._game_view = GameView()
-        layout.addWidget(self._game_view)
+        layout.addWidget(self._game_view, stretch=1)
+
+        self._map_panel = MapPanel()
+        layout.addWidget(self._map_panel, stretch=0)
 
         self._connect_signals()
 
@@ -85,7 +90,15 @@ class MainWindow(QMainWindow):
         self._signals.inventory_updated.connect(self._game_view.update_inventory)
         self._signals.room_items_changed.connect(self._game_view.update_room_items)
 
+        # Phase 3.2 — dungeon map panel
+        self._signals.map_state_changed.connect(self._map_panel.update_map)
+
     # ── Key events (hold-to-talk) ─────────────────────────────────────────────
+
+    def closeEvent(self, event) -> None:
+        """Reset game state on close so the next launch starts fresh."""
+        self._controller.reset_game_state()
+        super().closeEvent(event)
 
     def keyPressEvent(self, event) -> None:
         """
