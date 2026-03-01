@@ -19,12 +19,14 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QFrame,
     QGraphicsLineItem,
+    QGraphicsOpacityEffect,
     QGraphicsRectItem,
     QGraphicsScene,
     QGraphicsTextItem,
     QGraphicsView,
     QHBoxLayout,
     QLabel,
+    QScrollArea,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -34,6 +36,23 @@ from config import ASSETS_DIR, BG_COLOR
 
 _ICONS_DIR  = ASSETS_DIR / "icons"
 _ICON_SIZE  = 28   # px for Player Status icons
+
+_ITEM_ICONS_DIR = ASSETS_DIR / "item_icons"
+_ITEM_ICON_SIZE = 42   # px — item slot card icons
+
+# All inventory slots shown in the slider, in display order
+_ALL_SLOTS: list[tuple[str, str, str]] = [
+    # (slot_or_type_key, display_label, icon_file)
+    ("weapon", "Weapon",  "weapon.png"),
+    ("helmet", "Helmet",  "helmet.png"),
+    ("suit",   "Suit",    "suit.png"),
+    ("legs",   "Legs",    "legs.png"),
+    ("shoes",  "Shoes",   "shoes.png"),
+    ("cloak",  "Cloak",   "cloak.png"),
+    ("shield", "Shield",  "shield.png"),
+    ("key",    "Key",     "key.png"),
+    ("potion", "Potion",  "potion.png"),
+]
 
 # ── Layout constants ───────────────────────────────────────────────────────────
 
@@ -339,40 +358,82 @@ class MapPanel(QWidget):
         hp_h.addStretch()
         sf_layout.addWidget(hp_row)
 
-        # Bag icon row
-        bag_row = QWidget()
-        bag_row.setStyleSheet("background: transparent;")
-        bag_h = QHBoxLayout(bag_row)
-        bag_h.setContentsMargins(0, 4, 0, 0)
-        bag_h.setSpacing(8)
+        # Horizontal scroll area — all item slots (active / inactive)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet(
+            "QScrollArea { background: transparent; border: none; }"
+            "QScrollBar:horizontal { height: 6px; background: #1a1a2a; border-radius: 3px; }"
+            "QScrollBar::handle:horizontal { background: #444466; border-radius: 3px; }"
+        )
+        scroll.setFixedHeight(108)
 
-        self._icon_bag = QLabel()
-        px = _load_icon("inventory.png")
-        if px:
-            self._icon_bag.setPixmap(px)
-        self._icon_bag.setFixedSize(_ICON_SIZE, _ICON_SIZE)
-        self._icon_bag.setStyleSheet("background: transparent; border: none;")
-        bag_h.addWidget(self._icon_bag)
-        bag_h.addStretch()
-        sf_layout.addWidget(bag_row)
+        inner = QWidget()
+        inner.setStyleSheet("background: transparent;")
+        inner_h = QHBoxLayout(inner)
+        inner_h.setContentsMargins(4, 4, 4, 4)
+        inner_h.setSpacing(6)
 
-        # Weapon / Armor / Bag text
-        for attr in ("lbl_ps_weapon", "lbl_ps_armor", "lbl_ps_bag"):
-            lbl = QLabel("")
-            lbl.setWordWrap(True)
-            lbl.setStyleSheet(
-                "font-size: 12px; color: #a0a0b8; "
-                "background: transparent; border: none;"
-            )
-            setattr(self, attr, lbl)
-            sf_layout.addWidget(lbl)
+        self._slot_cards: dict[str, tuple[QFrame, QLabel, QLabel]] = {}
+        for slot_key, label, icon_file in _ALL_SLOTS:
+            card, icon_lbl, name_lbl = self._make_slot_card(label, icon_file)
+            self._slot_cards[slot_key] = (card, icon_lbl, name_lbl)
+            inner_h.addWidget(card)
+        inner_h.addStretch()
 
-        # Defaults
-        self.lbl_ps_weapon.setText("Weapon: [none]")
-        self.lbl_ps_armor.setText("Armor: [none]")
-        self.lbl_ps_bag.setText("")
+        scroll.setWidget(inner)
+        sf_layout.addWidget(scroll)
+        sf_layout.addStretch()
 
         parent_layout.addWidget(status_frame, stretch=4)
+
+    def _make_slot_card(
+        self, label: str, icon_file: str
+    ) -> tuple["QFrame", "QLabel", "QLabel"]:
+        """Create an inventory slot card (inactive by default)."""
+        card = QFrame()
+        card.setFixedWidth(80)
+        card.setStyleSheet(
+            "QFrame { background-color: #141420; border: 1px solid #2a2a3a; border-radius: 6px; }"
+        )
+        v = QVBoxLayout(card)
+        v.setContentsMargins(4, 4, 4, 6)
+        v.setSpacing(2)
+
+        slot_lbl = QLabel(label)
+        slot_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        slot_lbl.setStyleSheet(
+            "font-size: 9px; color: #555566; background: transparent; border: none;"
+        )
+        v.addWidget(slot_lbl)
+
+        icon_lbl = QLabel()
+        px = QPixmap(str(_ITEM_ICONS_DIR / icon_file))
+        if not px.isNull():
+            px = px.scaled(
+                _ITEM_ICON_SIZE, _ITEM_ICON_SIZE,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            icon_lbl.setPixmap(px)
+        icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_lbl.setStyleSheet("background: transparent; border: none;")
+        effect = QGraphicsOpacityEffect()
+        effect.setOpacity(0.2)
+        icon_lbl.setGraphicsEffect(effect)
+        v.addWidget(icon_lbl)
+
+        name_lbl = QLabel("")
+        name_lbl.setWordWrap(True)
+        name_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        name_lbl.setStyleSheet(
+            "font-size: 9px; color: #444455; background: transparent; border: none;"
+        )
+        v.addWidget(name_lbl)
+
+        return card, icon_lbl, name_lbl
 
     def _build_html(
         self,
@@ -430,24 +491,43 @@ class MapPanel(QWidget):
         """
         Slot for inventory_updated signal.
         payload = {"equipped": {slot: item_dict | None}, "bag": [item_dicts]}
+        Updates each slot card to active (item equipped/in bag) or inactive.
         """
         equipped = payload.get("equipped", {})
         bag      = payload.get("bag", [])
 
-        w = equipped.get("weapon")
-        self.lbl_ps_weapon.setText(
-            f"Weapon: {w['name']}  (ATK {w.get('damage', 0)})" if w else "Weapon: [none]"
-        )
+        for slot_key, (card, icon_lbl, name_lbl) in self._slot_cards.items():
 
-        _ARMOR_SLOTS = ("helmet", "suit", "legs", "shoes", "cloak", "shield")
-        parts = [
-            f"{slot.title()}: {equipped[slot]['name']} (DEF {equipped[slot].get('defense', 0)})"
-            for slot in _ARMOR_SLOTS if equipped.get(slot)
-        ]
-        self.lbl_ps_armor.setText(
-            "Armor: " + "  |  ".join(parts) if parts else "Armor: [none]"
-        )
+            if slot_key in ("key", "potion"):
+                # Active when a matching item type is in the bag
+                match = next((i for i in bag if i.get("type") == slot_key), None)
+                active    = match is not None
+                item_name = match["name"] if match else ""
+            else:
+                item = equipped.get(slot_key)
+                # bare_hands counts as unequipped
+                if slot_key == "weapon" and item and item.get("id") == "bare_hands":
+                    active    = False
+                    item_name = ""
+                else:
+                    active    = item is not None
+                    item_name = item["name"] if item else ""
 
-        self.lbl_ps_bag.setText(
-            "Bag: " + ",  ".join(i["name"] for i in bag) if bag else ""
-        )
+            if active:
+                card.setStyleSheet(
+                    "QFrame { background-color: #2a1020; border: 1px solid #aa2222; border-radius: 6px; }"
+                )
+                icon_lbl.graphicsEffect().setOpacity(1.0)
+                name_lbl.setText(item_name)
+                name_lbl.setStyleSheet(
+                    "font-size: 9px; color: #c0c0d8; background: transparent; border: none;"
+                )
+            else:
+                card.setStyleSheet(
+                    "QFrame { background-color: #141420; border: 1px solid #2a2a3a; border-radius: 6px; }"
+                )
+                icon_lbl.graphicsEffect().setOpacity(0.2)
+                name_lbl.setText("")
+                name_lbl.setStyleSheet(
+                    "font-size: 9px; color: #444455; background: transparent; border: none;"
+                )

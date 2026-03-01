@@ -1,17 +1,17 @@
 {
   "items": [
-    {"id": "bare_hands",      "name": "Bare Hands",      "type": "weapon", "slot": "weapon",  "damage": 5,  "defense": 0, "scatter": false, "description": "Your fists — desperate, but never absent",                    "rarity": "default"},
-    {"id": "iron_sword",      "name": "Iron Sword",      "type": "weapon", "slot": "weapon",  "damage": 25, "defense": 0, "description": "A battered iron sword, still sharp enough to draw blood",       "rarity": "common"},
-    {"id": "battle_axe",      "name": "Battle Axe",      "type": "weapon", "slot": "weapon",  "damage": 40, "defense": 0, "description": "A heavy double-headed axe, its edge still gleaming",            "rarity": "rare"},
-    {"id": "cursed_dagger",   "name": "Cursed Dagger",   "type": "weapon", "slot": "weapon",  "damage": 35, "defense": 0, "description": "A dagger with a dark aura, warm to the touch",                  "rarity": "uncommon"},
-    {"id": "bone_club",       "name": "Bone Club",       "type": "weapon", "slot": "weapon",  "damage": 20, "defense": 0, "description": "A crude club fashioned from a femur; primitive but effective",   "rarity": "common"},
-    {"id": "iron_helm",       "name": "Iron Helm",       "type": "armor",  "slot": "helmet",  "damage": 0,  "defense": 3, "description": "A dented iron helmet, still solid enough to turn a blow",        "rarity": "common"},
-    {"id": "chain_mail",      "name": "Chain Mail",      "type": "armor",  "slot": "suit",    "damage": 0,  "defense": 5, "description": "Interlocking iron rings — heavy, but genuinely protective",      "rarity": "uncommon"},
-    {"id": "leather_greaves", "name": "Leather Greaves", "type": "armor",  "slot": "legs",    "damage": 0,  "defense": 2, "description": "Cracked leather leg guards, better than nothing",                "rarity": "common"},
-    {"id": "shadow_boots",    "name": "Shadow Boots",    "type": "armor",  "slot": "shoes",   "damage": 0,  "defense": 2, "description": "Dark boots that muffle footsteps on stone",                     "rarity": "common"},
-    {"id": "tattered_cloak",  "name": "Tattered Cloak",  "type": "armor",  "slot": "cloak",   "damage": 0,  "defense": 3, "description": "A fraying cloak that still deflects glancing blows",            "rarity": "common"},
-    {"id": "cracked_shield",  "name": "Cracked Shield",  "type": "armor",  "slot": "shield",  "damage": 0,  "defense": 4, "description": "A battered wooden shield reinforced with iron bands",           "rarity": "uncommon"},
-    {"id": "prison_key",      "name": "Prison Key",      "type": "key",    "slot": null,      "damage": 0,  "defense": 0, "heal": 0,  "description": "A heavy iron key etched with a skull, warm to the touch",       "rarity": "uncommon"},
-    {"id": "health_potion",   "name": "Health Potion",   "type": "potion", "slot": null,      "damage": 0,  "defense": 0, "heal": 30, "description": "A vial of crimson liquid that smells of iron and herbs",          "rarity": "uncommon"}
+    {"id": "bare_hands",      "name": "Bare Hands",        "type": "weapon", "slot": "weapon",  "damage": 5,  "defense": 0, "scatter": false, "description": "Your fists. Desperate, but never absent",                    "rarity": "default"},
+    {"id": "iron_sword",      "name": "Iron Sword",        "type": "weapon", "slot": "weapon",  "damage": 25, "defense": 0, "description": "A worn iron sword that can still cut deep",                  "rarity": "common"},
+    {"id": "battle_axe",      "name": "War Axe",           "type": "weapon", "slot": "weapon",  "damage": 40, "defense": 0, "description": "A heavy double blade axe with a sharp edge",                 "rarity": "rare"},
+    {"id": "cursed_dagger",   "name": "Dark Dagger",       "type": "weapon", "slot": "weapon",  "damage": 35, "defense": 0, "description": "A dagger filled with dark energy",                           "rarity": "uncommon"},
+    {"id": "bone_club",       "name": "Bone Club",         "type": "weapon", "slot": "weapon",  "damage": 20, "defense": 0, "description": "A simple club made from bone",                               "rarity": "common"},
+    {"id": "iron_helm",       "name": "Iron Helmet",       "type": "armor",  "slot": "helmet",  "damage": 0,  "defense": 3, "description": "A damaged iron helmet that still protects",                  "rarity": "common"},
+    {"id": "chain_mail",      "name": "Chain Armor",       "type": "armor",  "slot": "suit",    "damage": 0,  "defense": 5, "description": "Heavy armor made of iron rings",                             "rarity": "uncommon"},
+    {"id": "leather_greaves", "name": "Leg Armor",         "type": "armor",  "slot": "legs",    "damage": 0,  "defense": 2, "description": "Old leather armor for the legs",                             "rarity": "common"},
+    {"id": "shadow_boots",    "name": "Shadow Boots",      "type": "armor",  "slot": "shoes",   "damage": 0,  "defense": 2, "description": "Boots that make your steps quiet",                           "rarity": "common"},
+    {"id": "tattered_cloak",  "name": "Old Cloak",         "type": "armor",  "slot": "cloak",   "damage": 0,  "defense": 3, "description": "A worn cloak that still blocks light hits",                  "rarity": "common"},
+    {"id": "cracked_shield",  "name": "Broken Shield",     "type": "armor",  "slot": "shield",  "damage": 0,  "defense": 4, "description": "A damaged shield reinforced with iron",                      "rarity": "uncommon"},
+    {"id": "prison_key",      "name": "Prison Key",        "type": "key",    "slot": null,      "damage": 0,  "defense": 0, "heal": 0,  "description": "A heavy iron key used for prison doors",                    "rarity": "uncommon"},
+    {"id": "health_potion",   "name": "Health Potion",     "type": "potion", "slot": null,      "damage": 0,  "defense": 0, "heal": 30, "description": "A red potion that restores health",                           "rarity": "uncommon"}
   ]
 }

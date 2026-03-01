@@ -7,6 +7,21 @@ from config import BG_COLOR, TEXT_COLOR, ACCENT_COLOR, STATUS_COLOR, ASSETS_DIR
 _ICONS_DIR = ASSETS_DIR / "icons"
 _ICON_SIZE  = 36   # px — icon labels are fixed at this square size
 
+_ITEM_ICONS_DIR = ASSETS_DIR / "item_icons"
+_ITEM_ICON_SIZE = 44   # px — item card icons
+
+_SLOT_ICON: dict[str, str] = {
+    "weapon": "weapon.png",
+    "helmet": "helmet.png",
+    "suit":   "suit.png",
+    "legs":   "legs.png",
+    "shoes":  "shoes.png",
+    "cloak":  "cloak.png",
+    "shield": "shield.png",
+    "key":    "key.png",
+    "potion": "potion.png",
+}
+
 
 def _load_icon(name: str) -> QPixmap | None:
     px = QPixmap(str(_ICONS_DIR / name))
@@ -81,25 +96,14 @@ class GameView(QWidget):
 
         layout.addSpacing(16)
 
-        # ── Room items row (chest icon + item names) ─────────
+        # ── Room items row (item cards) ─────────────────────
         self._items_row = QWidget()
         items_h = QHBoxLayout(self._items_row)
         items_h.setContentsMargins(0, 0, 0, 0)
-        items_h.setSpacing(10)
-
-        self._icon_chest = QLabel()
-        px = _load_icon("chest_pixel.png")
-        if px:
-            self._icon_chest.setPixmap(px)
-        self._icon_chest.setFixedSize(_ICON_SIZE, _ICON_SIZE)
-        items_h.addStretch()
-        items_h.addWidget(self._icon_chest)
-
-        self.lbl_room_items = QLabel("")
-        self.lbl_room_items.setWordWrap(True)
-        self.lbl_room_items.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        items_h.addWidget(self.lbl_room_items)
-        items_h.addStretch()
+        items_h.setSpacing(8)
+        items_h.addStretch()   # left spacer
+        items_h.addStretch()   # right spacer — cards inserted between these
+        self._items_layout = items_h
 
         self._items_row.setVisible(False)
         layout.addWidget(self._items_row)
@@ -163,11 +167,8 @@ class GameView(QWidget):
         self.lbl_narration.setStyleSheet(
             "font-size: 13px; font-style: italic; color: #a0a0b8;"
         )
-        self.lbl_room_items.setStyleSheet(
-            "font-size: 12px; color: #c0c0d8;"
-        )
         self.lbl_monster.setStyleSheet(
-            f"font-size: 13px; font-weight: bold; color: {ACCENT_COLOR};"
+            f"font-size: 13px; font-weight: bold;"
         )
         self.lbl_exits.setStyleSheet(
             "font-size: 13px; color: #8888aa; letter-spacing: 1px; "
@@ -178,6 +179,45 @@ class GameView(QWidget):
         self.lbl_status.setStyleSheet(
             f"font-size: 14px; font-style: italic; color: {STATUS_COLOR};"
         )
+
+    # ── Item card factory ─────────────────────────────────────────────────────
+
+    def _make_item_card(self, item: dict) -> QFrame:
+        """Create a small card widget with item-specific icon and name."""
+        card = QFrame()
+        card.setFixedWidth(82)
+        card.setStyleSheet(
+            "QFrame { background-color: transparent; border: 1px solid #aa2222; "
+            "border-radius: 6px; }"
+        )
+        v = QVBoxLayout(card)
+        v.setContentsMargins(4, 6, 4, 6)
+        v.setSpacing(4)
+
+        icon_lbl = QLabel()
+        icon_key  = item.get("slot") or item.get("type", "")
+        icon_name = _SLOT_ICON.get(icon_key, "")
+        if icon_name:
+            px = QPixmap(str(_ITEM_ICONS_DIR / icon_name))
+            if not px.isNull():
+                px = px.scaled(
+                    _ITEM_ICON_SIZE, _ITEM_ICON_SIZE,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                icon_lbl.setPixmap(px)
+        icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_lbl.setStyleSheet("background: transparent; border: none;")
+        v.addWidget(icon_lbl)
+
+        name_lbl = QLabel(item["name"])
+        name_lbl.setWordWrap(True)
+        name_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        name_lbl.setStyleSheet(
+            "font-size: 10px; color: #c0c0d8; background: transparent; border: none;"
+        )
+        v.addWidget(name_lbl)
+        return card
 
     # ── Slots ─────────────────────────────────────────────────────────────────
 
@@ -217,20 +257,19 @@ class GameView(QWidget):
         self.lbl_narration.setText(text)
 
     def update_room_items(self, items: list[dict]) -> None:
-        """Update the room items row. Shows ATK/DEF stat inline."""
+        """Update the room items row with icon cards for each item on the floor."""
+        while self._items_layout.count() > 0:
+            child = self._items_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+
         if items:
-            parts = []
-            for i in items:
-                if i.get("type") == "weapon":
-                    parts.append(f"{i['name']}  (ATK {i.get('damage', 0)})")
-                elif i.get("type") == "armor":
-                    parts.append(f"{i['name']}  (DEF {i.get('defense', 0)})")
-                else:
-                    parts.append(i["name"])
-            self.lbl_room_items.setText("  |  ".join(parts))
+            self._items_layout.addStretch()
+            for item in items:
+                self._items_layout.addWidget(self._make_item_card(item))
+            self._items_layout.addStretch()
             self._items_row.setVisible(True)
         else:
-            self.lbl_room_items.setText("")
             self._items_row.setVisible(False)
 
     def show_monster_row(self, name: str, hp: int, max_hp: int) -> None:
