@@ -23,7 +23,6 @@ from game.dungeon_map import DungeonMap
 from game.game_state import GameState
 from ui.signals import AppSignals
 
-
 # ── Worker Threads ─────────────────────────────────────────────────────────────
 
 class NarrationWorker(QThread):
@@ -201,6 +200,13 @@ class GameController(QObject):
     main thread via Qt's auto-queued connection.
     """
 
+    _ROOM_TYPE_TO_TRACK: dict[str, str] = {
+        "home":   "home",
+        "normal": "normal",
+        "boss":   "boss",
+        "exit":   "exit",
+    }
+
     def __init__(self, signals: AppSignals):
         super().__init__()
         self._signals = signals
@@ -258,7 +264,7 @@ class GameController(QObject):
             self._scatter_items()
 
         # Start background audio (gracefully skips if file is absent)
-        self._audio.play_bg("normal")
+        self._play_bg_for_room(self._state.current_room_id)
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -601,6 +607,7 @@ class GameController(QObject):
         self._in_combat      = False
         self._current_enemy  = None
         self._enemy_type     = None
+        self._play_bg_for_room(self._state.current_room_id)
         _path = wav_path
         QTimer.singleShot(30_000, lambda: self._cleanup_wav(_path))
 
@@ -739,10 +746,11 @@ class GameController(QObject):
             return
 
         # 7. Normal room narration
-        bg_track = new_room.get("type", "normal")
-        if bg_track in ("home", "exit"):
-            bg_track = "normal"
-        self._audio.play_bg(bg_track)
+        # bg_track = new_room.get("type", "normal")
+        # if bg_track in ("home", "exit"):
+        #     bg_track = "normal"
+        # self._audio.play_bg(bg_track)
+        self._play_bg_for_room(target_id)
 
         self._trigger_narration()
 
@@ -912,6 +920,8 @@ class GameController(QObject):
         self._scatter_items()
         self._scatter_monsters()
 
+        self._play_bg_for_room(self._state.current_room_id)
+
         self._trigger_narration()
 
     def _compute_total_defense(self) -> int:
@@ -1039,7 +1049,8 @@ class GameController(QObject):
         self._in_combat      = False
         self._current_enemy  = None
         self._enemy_type     = None
-        self._audio.play_bg("normal")
+        # self._audio.play_bg("normal")
+        self._play_bg_for_room(self._state.current_room_id)
         self._trigger_narration()
         _path = wav_path
         QTimer.singleShot(30_000, lambda: self._cleanup_wav(_path))
@@ -1060,6 +1071,12 @@ class GameController(QObject):
         self._trigger_narration()
         _path = wav_path
         QTimer.singleShot(30_000, lambda: self._cleanup_wav(_path))
+
+    def _play_bg_for_room(self, room_id: str) -> None:
+        """Switch background music to match the type of the given room."""
+        room_type = self._dungeon.get_room(room_id).get("type", "normal")
+        track = self._ROOM_TYPE_TO_TRACK.get(room_type, "normal")
+        self._audio.play_bg(track)
 
     # ── Cleanup ───────────────────────────────────────────────────────────────
 

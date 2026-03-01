@@ -19,7 +19,7 @@ BOSSES_AUDIO_DIR = ROOT_DIR / "audio" / "bosses"
 # ── Audio recording (Mistral realtime requires pcm_s16le @ 16kHz) ──
 SAMPLE_RATE       = 16000   # Hz
 CHUNK_DURATION_MS = 480     # ms per audio chunk sent to Mistral
-BG_VOLUME         = 0.4     # 0.0 – 1.0
+BG_VOLUME         = 0.05     # 0.0 – 1.0
 
 # ── TTS (OpenAI) ──────────────────────────────────────
 TTS_MODEL  = "tts-1"
