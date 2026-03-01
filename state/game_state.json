@@ -8,20 +8,7 @@
   },
   "world": {
     "cleared_bosses": [],
-    "room_items": {
-      "a": [
-        "bone_club"
-      ],
-      "b": [
-        "battle_axe"
-      ],
-      "c": [
-        "iron_sword"
-      ],
-      "d": [
-        "cursed_dagger"
-      ]
-    },
+    "room_items": {},
     "boss_hp": {},
     "monster_positions": {},
     "unlocked_rooms": []

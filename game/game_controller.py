@@ -10,9 +10,9 @@ from PyQt6.QtCore import QObject, QThread, QTimer, pyqtSignal
 from ai.intent_parser import IntentAction, IntentParser
 from ai.mistral_client import MistralClient
 from ai.narrator import Narrator
-from ai.tts_client import TTSClient, TTSElevenLabsClient, TTSOpenAIClient  # noqa: F401
+from ai.tts_client import TTSClient # noqa: F401
 from audio.audio_manager import AudioManager
-from audio.deepgram_stt import DeepgramSTTWorker
+from ai.stt_client import STTWorker  # noqa: F401
 from config import (
     GAME_STATE_FILE, MAP_FILE, SAMPLE_RATE, CHUNK_DURATION_MS, STT_MODEL,
     ITEMS_FILE, BOSSES_FILE, BOSSES_AUDIO_DIR,
@@ -93,100 +93,6 @@ class SimpleNarrationWorker(QThread):
             self.error.emit(str(e))
 
 
-class RealtimeSTTWorker(QThread):
-    """
-    Streams microphone audio to Mistral's realtime transcription API.
-
-    Lifecycle:
-      1. Instantiated and started when the player presses Space.
-      2. Opens a PyAudio input stream and yields chunks to Mistral.
-      3. When stop_event is set (Space released), the async generator exits.
-      4. Mistral finalises the transcription and emits TranscriptionStreamDone.
-      5. transcript_ready is emitted with the full text.
-
-    Uses threading.Event (not asyncio.Event) because it is set from the
-    main Qt thread — threading.Event.is_set() is safe under Python's GIL.
-    """
-    transcript_delta = pyqtSignal(str)   # live partial text for UI display
-    transcript_ready = pyqtSignal(str)   # final complete transcript
-    error            = pyqtSignal(str)
-
-    def __init__(self, api_key: str, stop_event: threading.Event):
-        super().__init__()
-        self._api_key    = api_key
-        self._stop_event = stop_event
-
-    def run(self) -> None:
-        asyncio.run(self._stream())
-
-    async def _stream(self) -> None:
-        from mistralai import Mistral
-        from mistralai.models import (
-            AudioFormat,
-            TranscriptionStreamTextDelta,
-            TranscriptionStreamDone,
-            RealtimeTranscriptionError,
-        )
-        try:
-            from mistralai.extra.realtime import UnknownRealtimeEvent
-            _has_unknown = True
-        except ImportError:
-            _has_unknown = False
-
-        client       = Mistral(api_key=self._api_key)
-        audio_format = AudioFormat(encoding="pcm_s16le", sample_rate=SAMPLE_RATE)
-        full_text    = ""
-
-        try:
-            async for event in client.audio.realtime.transcribe_stream(
-                audio_stream=self._iter_microphone(),
-                model=STT_MODEL,
-                audio_format=audio_format,
-            ):
-                if isinstance(event, TranscriptionStreamTextDelta):
-                    full_text += event.text
-                    self.transcript_delta.emit(event.text)
-                elif isinstance(event, TranscriptionStreamDone):
-                    break
-                elif isinstance(event, RealtimeTranscriptionError):
-                    self.error.emit(f"Realtime STT error: {event}")
-                    return
-        except Exception as e:
-            self.error.emit(str(e))
-            return
-
-        self.transcript_ready.emit(full_text)
-
-    async def _iter_microphone(self):
-        import pyaudio
-        p             = pyaudio.PyAudio()
-        chunk_samples = int(SAMPLE_RATE * CHUNK_DURATION_MS / 1000)
-        try:
-            stream = p.open(
-                format=pyaudio.paInt16,
-                channels=1,
-                rate=SAMPLE_RATE,
-                input=True,
-                frames_per_buffer=chunk_samples,
-            )
-        except Exception as e:
-            self.error.emit(f"PyAudio open failed: {e}")
-            p.terminate()
-            return
-
-        loop = asyncio.get_running_loop()
-        try:
-            while not self._stop_event.is_set():
-                data = await loop.run_in_executor(
-                    None, stream.read, chunk_samples, False
-                )
-                yield data
-        finally:
-            stream.stop_stream()
-            stream.close()
-            p.terminate()
-
-
 # ── GameController ─────────────────────────────────────────────────────────────
 
 class GameController(QObject):
@@ -234,7 +140,7 @@ class GameController(QObject):
         # ── Worker thread references ─────────────────────────────────────
         # Stored as attrs to prevent Python GC-ing threads while they run.
         self._narration_worker: QThread | None = None
-        self._stt_worker: RealtimeSTTWorker | None = None
+        self._stt_worker: STTWorker | None = None
         self._stt_stop_event: threading.Event | None = None
 
         # ── Narration context ─────────────────────────────────────────────
@@ -280,8 +186,8 @@ class GameController(QObject):
             return
         self._is_recording = True
         self._stt_stop_event = threading.Event()
-        # self._stt_worker = RealtimeSTTWorker(self._mistral.api_key, self._stt_stop_event)  # Mistral STT (kept for reference)
-        self._stt_worker = DeepgramSTTWorker(self._stt_stop_event)
+        # self._stt_worker = MistralSTTWorker(self._mistral.api_key, self._stt_stop_event)  # Mistral STT (kept for reference)
+        self._stt_worker = STTWorker(self._stt_stop_event)  # default → DeepgramSTTWorker
         self._stt_worker.transcript_delta.connect(self._on_transcript_delta)
         self._stt_worker.transcript_ready.connect(self._on_transcript_ready)
         self._stt_worker.error.connect(self._on_stt_error)
