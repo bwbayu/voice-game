@@ -9,7 +9,7 @@ No LLM calls anywhere in this file: pure string construction only.
 
 def build_narration_system_prompt() -> str:
     return (
-        "You are a dungeon master narrating a blind dungeon game. "
+        "You are a dungeon master narrating a Voice of the Dungeon game. "
         "The player cannot see anything — your words are their only perception. "
         "Be atmospheric and concise (1–2 sentences max). "
         "Mention each available exit direction and any visible items in one brief phrase each. "

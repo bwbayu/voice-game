@@ -1,5 +1,5 @@
 """
-Blind Dungeon — Phase 1 entry point.
+Voice of the Dungeon — Phase 1 entry point.
 
 Startup sequence:
   1. Create QApplication
@@ -32,7 +32,7 @@ logging.basicConfig(
 
 def main() -> int:
     app = QApplication(sys.argv)
-    app.setApplicationName("Blind Dungeon")
+    app.setApplicationName("Voice of the Dungeon")
 
     # Signal bus — must exist on main thread before any workers start
     signals = AppSignals()

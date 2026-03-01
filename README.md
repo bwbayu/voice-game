@@ -1,6 +1,6 @@
-# Blind Dungeon
+# Voice of the Dungeon
 
-An AI-powered, voice-controlled dungeon crawler where you navigate entirely through speech and audio narration.
+An AI-powered voice-driven RPG where Mistral acts as your Game Master and your voice shapes the adventure.
 
 Built for the [Mistral Worldwide Hackathon](https://mistral.ai) (Feb 28 – Mar 1, 2026).
 
@@ -8,13 +8,15 @@ Built for the [Mistral Worldwide Hackathon](https://mistral.ai) (Feb 28 – Mar 
 
 ## Overview
 
-Blind Dungeon puts you inside a dark, interconnected dungeon with one rule: **you can't see anything**. You hold Space to speak your commands, and the dungeon speaks back — describing your surroundings, what you've picked up, and the chaos of combat — all narrated in real time by AI.
+Voice of the Dungeon is a Dungeons & Dragons-inspired RPG where **the AI is your Game Master**. There's no controller, no menu to click through — you speak, and the world responds. The AI narrates your surroundings, reacts to your decisions, and drives the story forward in real time.
+
+Hold Space, say what you want to do, and the Game Master takes it from there — whether that's moving deeper into the dungeon, deciding how to handle an enemy encounter, picking up a mysterious item, or choosing to run. Every decision is yours to make, voiced naturally, and answered with atmospheric narration powered by Mistral and spoken aloud by ElevenLabs.
 
 The core loop:
-1. Hold **Space** and speak a command (e.g. *"go north"*, *"pick up the sword"*, *"attack with the axe"*)
-2. Mistral parses your intent and generates atmospheric narration
+1. Hold **Space** and speak your intention (e.g. *"I want to head north"*, *"let me grab that sword"*, *"I'll attack with the axe"*)
+2. Mistral understands your intent and generates a Game Master response
 3. ElevenLabs voices the narration aloud
-4. Navigate rooms, collect items, fight monsters, and escape the dungeon
+4. Make decisions, explore rooms, fight monsters, and find your way out
 
 ---
 
@@ -87,7 +89,7 @@ Release Space → final transcript → IntentParser → game action
 
 ```bash
 git clone <repo-url>
-cd mistral-hackathon
+cd voice-of-the-dungeon
 
 python -m venv env
 source env/bin/activate       # Windows: env\Scripts\activate

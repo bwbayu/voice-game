@@ -222,7 +222,6 @@ class GameView(QWidget):
         ui_layout = QVBoxLayout(self._ui_container)
         ui_layout.setContentsMargins(25, 10, 25, 25)
         
-        # Room Name (Judul "BLIND DUNGEON" Dihapus)
         self.lbl_room = QLabel("—")
         self.lbl_room.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_room.setWordWrap(True)

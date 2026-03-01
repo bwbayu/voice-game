@@ -1,6 +1,7 @@
 import logging
 
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QMainWindow, QMessageBox, QVBoxLayout, QWidget
 
 from config import BG_COLOR, TEXT_COLOR, FONT_BODY
@@ -19,7 +20,8 @@ class MainWindow(QMainWindow):
         self._controller = controller
         self._recording  = False
 
-        self.setWindowTitle("Blind Dungeon")
+        self.setWindowTitle("Voice of the Dungeon")
+        self.setWindowIcon(QIcon("assets/icons/boss_icon.png"))
         # Format Portrait: Lebar 480px, Tinggi 850px
         self.setMinimumSize(520, 900)
         self.resize(480, 850)
