@@ -21,7 +21,7 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("Blind Dungeon")
         # Format Portrait: Lebar 480px, Tinggi 850px
-        self.setMinimumSize(480, 850)
+        self.setMinimumSize(520, 900)
         self.resize(480, 850)
         
         # Menggunakan fallback font Lora/Georgia
