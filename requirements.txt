@@ -1,9 +1,11 @@
 mistralai
 python-dotenv
 openai
+elevenlabs
 PyQt6
 pyaudio
 numpy
 pygame
 websockets
+websocket-client
 deepgram-sdk

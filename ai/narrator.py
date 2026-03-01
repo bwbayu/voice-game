@@ -1,7 +1,7 @@
 import logging
 
 from ai.mistral_client import MistralClient
-from ai.tts_client import TTSClient
+from ai.tts_client import TTSClient, TTSElevenLabsClient, TTSOpenAIClient  # noqa: F401
 from ai.prompts import (
     build_narration_system_prompt,
     build_narration_user_prompt,

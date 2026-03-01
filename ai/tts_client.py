@@ -1,54 +1,145 @@
+"""
+TTS abstraction layer.
+
+Hierarchy:
+    TTSClient          – abstract base class
+    ├── TTSElevenLabsClient  – ElevenLabs TTS (default)
+    └── TTSOpenAIClient      – OpenAI TTS (tts-1)
+
+Calling TTSClient() returns a TTSElevenLabsClient by default.
+To use OpenAI instead, instantiate TTSOpenAIClient() directly.
+"""
+from __future__ import annotations
+
 import os
 import tempfile
 import logging
+from abc import ABC, abstractmethod
 
 from dotenv import load_dotenv
-from openai import OpenAI
-
-from config import TTS_MODEL, TTS_VOICE, TTS_FORMAT
 
 load_dotenv()
 
 
-class TTSClient:
+# ── Base class ────────────────────────────────────────────────────────────────
+
+class TTSClient(ABC):
+    """
+    Abstract base class for TTS backends.
+
+    Calling ``TTSClient()`` returns a :class:`TTSElevenLabsClient` instance
+    (factory behaviour via ``__new__``).
+    To use a specific backend, instantiate it directly.
+    """
+
+    def __new__(cls, *args, **kwargs):
+        # Factory: bare TTSClient() → ElevenLabs
+        if cls is TTSClient:
+            return super().__new__(TTSElevenLabsClient)
+        return super().__new__(cls)
+
+    @abstractmethod
+    def speak(self, text: str, voice: str | None = None) -> str:
+        """
+        Generate speech for *text*.
+        Returns the path to a named temporary audio file.
+
+        The file is created with delete=False so it persists after close().
+        The caller must delete it when audio playback is complete.
+
+        voice: optional per-call override for the configured voice.
+        """
+
+
+# ── ElevenLabs backend (default) ──────────────────────────────────────────────
+
+_EL_MODEL = os.getenv("ELEVENLABS_MODEL", "eleven_multilingual_v2")
+_EL_VOICE = os.getenv("ELEVENLABS_VOICE_ID", "JBFqnCBsd6RMkjVDRZzb")  # "George"
+
+
+class TTSElevenLabsClient(TTSClient):
+    """
+    Wraps ElevenLabs TTS.
+    Returns the path to a temporary MP3 file containing the generated speech.
+    """
+
+    def __init__(
+        self,
+        voice_id: str | None = None,
+        model: str | None = None,
+    ):
+        from elevenlabs.client import ElevenLabs  # lazy import
+
+        api_key = os.getenv("ELEVENLABS_API_KEY")
+        if not api_key:
+            raise EnvironmentError(
+                "ELEVENLABS_API_KEY is not set. Add it to your .env file."
+            )
+        self._client = ElevenLabs(api_key=api_key)
+        self._voice  = voice_id or _EL_VOICE
+        self._model  = model    or _EL_MODEL
+        logging.info(
+            "TTSElevenLabsClient: initialised (voice=%s, model=%s).",
+            self._voice, self._model,
+        )
+
+    def speak(self, text: str, voice: str | None = None) -> str:
+        from elevenlabs import save  # lazy import
+
+        if not text.strip():
+            raise ValueError("TTSElevenLabsClient.speak: received empty text.")
+
+        audio = self._client.text_to_speech.convert(
+            voice_id=voice or self._voice,
+            model_id=self._model,
+            text=text,
+            output_format="mp3_44100_128",
+        )
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+        tmp.close()
+        save(audio, tmp.name)
+        logging.debug("TTSElevenLabsClient: wrote speech to %s", tmp.name)
+        return tmp.name
+
+
+# ── OpenAI backend ────────────────────────────────────────────────────────────
+
+class TTSOpenAIClient(TTSClient):
     """
     Wraps OpenAI TTS (tts-1).
     Returns the path to a temporary WAV file containing the generated speech.
-    The caller is responsible for deleting the file when done with it.
     """
 
     def __init__(self):
+        from openai import OpenAI  # lazy import
+        from config import TTS_MODEL, TTS_VOICE, TTS_FORMAT  # lazy import
+
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise EnvironmentError(
                 "OPENAI_API_KEY is not set. Add it to your .env file."
             )
         self._client = OpenAI(api_key=api_key)
-        logging.info("TTSClient: initialised.")
+        self._model  = TTS_MODEL
+        self._voice  = TTS_VOICE
+        self._format = TTS_FORMAT
+        logging.info("TTSOpenAIClient: initialised.")
 
     def speak(self, text: str, voice: str | None = None) -> str:
-        """
-        Generate speech for text using OpenAI TTS.
-        Returns the path to a named temporary WAV file.
-
-        The file is created with delete=False so it persists after close().
-        The caller must delete it when audio playback is complete.
-
-        voice: optional override for the default TTS_VOICE (e.g. boss voices).
-        """
         if not text.strip():
-            raise ValueError("TTSClient.speak: received empty text.")
+            raise ValueError("TTSOpenAIClient.speak: received empty text.")
 
         tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
         tmp.close()
 
         response = self._client.audio.speech.create(
-            model=TTS_MODEL,
-            voice=voice or TTS_VOICE,
+            model=self._model,
+            voice=voice or self._voice,
             input=text,
-            response_format=TTS_FORMAT,
             speed=2.0,
+            response_format=self._format,
         )
         response.stream_to_file(tmp.name)
-        logging.debug(f"TTSClient: wrote speech to {tmp.name}")
+        logging.debug("TTSOpenAIClient: wrote speech to %s", tmp.name)
         return tmp.name
