@@ -34,8 +34,11 @@ class AppSignals(QObject):
     game_won            = pyqtSignal(str, str)   # (room_name, wav_path)
 
     # Phase 2 — combat + items
-    combat_started     = pyqtSignal(dict)   # {name, hp, max_hp}
-    combat_updated     = pyqtSignal(dict)   # {player_hp, player_max_hp, boss_hp, boss_max_hp}
-    combat_ended       = pyqtSignal()       # boss defeated, back to exploration
-    inventory_updated  = pyqtSignal(list)   # list of item dicts
+    combat_started     = pyqtSignal(dict)   # {name, player_hp, player_max_hp, enemy_hp, enemy_max_hp}
+    combat_updated     = pyqtSignal(dict)   # {player_hp, player_max_hp, enemy_hp, enemy_max_hp}
+    combat_ended       = pyqtSignal()       # enemy defeated, back to exploration
+    inventory_updated  = pyqtSignal(dict)   # {"equipped": {slot: item_dict|None}, "bag": [item_dicts]}
     room_items_changed = pyqtSignal(list)   # list of item dicts in current room
+
+    # Phase 3 — death
+    game_over          = pyqtSignal(str, str)   # (narration_text, wav_path)

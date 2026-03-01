@@ -62,6 +62,8 @@
         "east": "boss",
         "down": "t"
       },
+      "locked": true,
+      "key_id": "prison_key",
       "bg_image":"assets/image/c.png"
     },
     "d": {

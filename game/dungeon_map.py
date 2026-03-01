@@ -100,6 +100,14 @@ class DungeonMap:
         """Return IDs of all rooms with type == 'boss'."""
         return [rid for rid, r in self._rooms.items() if r.get("type") == "boss"]
 
+    def is_locked(self, room_id: str) -> bool:
+        """True if the room has locked: true in map data."""
+        return bool(self._rooms.get(room_id, {}).get("locked", False))
+
+    def get_required_key(self, room_id: str) -> str | None:
+        """Return the key_id required to enter room_id, or None."""
+        return self._rooms.get(room_id, {}).get("key_id")
+
     @property
     def theme(self) -> str:
         return self._data.get("theme", "dungeon")

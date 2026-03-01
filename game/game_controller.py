@@ -15,8 +15,9 @@ from audio.audio_manager import AudioManager
 from audio.deepgram_stt import DeepgramSTTWorker
 from config import (
     GAME_STATE_FILE, MAP_FILE, SAMPLE_RATE, CHUNK_DURATION_MS, STT_MODEL,
-    ITEMS_FILE, BOSSES_FILE, BOSSES_AUDIO_DIR,
+    ITEMS_FILE, BOSSES_FILE, BOSSES_AUDIO_DIR, MONSTERS_FILE,
 )
+from game.monster_ai import MonsterManager
 from game.combat import CombatManager, CombatResult
 from game.dungeon_map import DungeonMap
 from game.game_state import GameState
@@ -208,12 +209,15 @@ class GameController(QObject):
         self._dungeon = DungeonMap(MAP_FILE)
         self._state   = GameState(GAME_STATE_FILE)
 
-        # ── Item / boss registries ───────────────────────────────────────
+        # ── Item / boss / monster registries ────────────────────────────
         self._item_registry: dict[str, dict] = {
             i["id"]: i for i in json.loads(ITEMS_FILE.read_text())["items"]
         }
         self._boss_registry: dict[str, dict] = {
             b["id"]: b for b in json.loads(BOSSES_FILE.read_text())["bosses"]
+        }
+        self._monster_registry: dict[str, dict] = {
+            m["id"]: m for m in json.loads(MONSTERS_FILE.read_text())["monsters"]
         }
 
         # ── AI layer ────────────────────────────────────────────────────
@@ -223,10 +227,12 @@ class GameController(QObject):
         self._intent_parser = IntentParser(self._mistral)
 
         # ── Combat layer ─────────────────────────────────────────────────
-        self._combat_manager       = CombatManager()
-        self._in_combat:  bool     = False
-        self._current_boss: dict | None = None   # boss dict + current_hp
-        self._last_attack_item_id: str  = ""
+        self._combat_manager            = CombatManager()
+        self._monster_manager           = MonsterManager()
+        self._in_combat:  bool          = False
+        self._current_enemy: dict | None = None   # enemy dict + current_hp
+        self._enemy_type:   str | None   = None   # "boss" | "monster"
+        self._last_attack_item_id: str   = ""
 
         # ── Audio layer ─────────────────────────────────────────────────
         self._audio = AudioManager()
@@ -266,6 +272,9 @@ class GameController(QObject):
         self._emit_state()
         self._emit_room_items()
         self._emit_inventory()
+
+        if self._state.needs_monster_scatter():
+            self._scatter_monsters()
 
         room_id = self._state.current_room_id
         boss_id = self._dungeon.get_boss_id(room_id)
@@ -322,10 +331,24 @@ class GameController(QObject):
         self._signals.room_items_changed.emit(self._room_items_as_dicts(room_id))
 
     def _emit_inventory(self) -> None:
-        """Emit inventory_updated with current inventory."""
-        self._signals.inventory_updated.emit(self._inventory_as_dicts())
+        """Emit inventory_updated with current equipment payload."""
+        self._signals.inventory_updated.emit(self._equipment_payload())
+
+    def _equipment_payload(self) -> dict:
+        """Build the dict payload for inventory_updated: {equipped, bag}."""
+        eq_ids = self._state.equipped
+        equipped_dicts = {
+            slot: (self._item_registry[iid] if iid and iid in self._item_registry else None)
+            for slot, iid in eq_ids.items()
+        }
+        bag_dicts = [
+            self._item_registry[iid] for iid in self._state.bag
+            if iid in self._item_registry
+        ]
+        return {"equipped": equipped_dicts, "bag": bag_dicts}
 
     def _inventory_as_dicts(self) -> list[dict]:
+        """Flat list of all carried items — used for intent parser context only."""
         return [self._item_registry[iid] for iid in self._state.inventory
                 if iid in self._item_registry]
 
@@ -343,7 +366,7 @@ class GameController(QObject):
         ]
         if not eligible:
             return
-        items = list(self._item_registry.keys())
+        items = [iid for iid, item in self._item_registry.items() if item.get("scatter", True)]
         random.shuffle(items)
         for i, item_id in enumerate(items):
             room = eligible[i % len(eligible)]
@@ -353,6 +376,13 @@ class GameController(QObject):
         logging.info(
             f"GameController: scattered {len(items)} items across {len(eligible)} rooms."
         )
+
+    def _scatter_monsters(self) -> None:
+        """Place all monsters into random eligible rooms (type == 'normal')."""
+        monster_ids = list(self._monster_registry.keys())
+        self._monster_manager.scatter(monster_ids, self._dungeon, self._state)
+        self._state.save()
+        logging.info(f"GameController: scattered monsters {monster_ids}")
 
     # ── Boss audio validation ─────────────────────────────────────────────────
 
@@ -412,24 +442,24 @@ class GameController(QObject):
         self._narration_worker.start()
 
     def _trigger_combat_round_narration(
-        self, result: CombatResult, boss_hp: int, player_hp: int
+        self, result: CombatResult, enemy_hp: int, player_hp: int
     ) -> None:
         """Spawn narration for a combat round result."""
         self._signals.narration_started.emit()
-        boss      = self._current_boss
+        enemy     = self._current_enemy
         item_name = self._item_registry.get(
             self._last_attack_item_id, {"name": "weapon"}
         )["name"]
 
         def fn():
             return self._narrator.narrate_combat_round(
-                boss_name=boss["name"],
+                boss_name=enemy["name"],
                 item_name=item_name,
                 player_damage=result.player_damage,
                 skill_name=result.skill_name,
                 boss_damage=result.boss_damage,
                 player_hp=player_hp,
-                boss_hp=boss_hp,
+                boss_hp=enemy_hp,
             )
 
         self._narration_worker = SimpleNarrationWorker(fn)
@@ -440,7 +470,7 @@ class GameController(QObject):
     def _trigger_boss_defeat_narration(self) -> None:
         """Spawn boss defeat narration."""
         self._signals.narration_started.emit()
-        boss_name = self._current_boss["name"]
+        boss_name = self._current_enemy["name"]
 
         def fn():
             return self._narrator.narrate_boss_defeat(boss_name)
@@ -500,15 +530,13 @@ class GameController(QObject):
         self._signals.narration_text.emit(text)
         self._audio.play_clip(wav_path)
         self._signals.narration_finished.emit()
-        boss = self._current_boss
+        enemy = self._current_enemy
         self._signals.combat_started.emit({
-            "name":          boss["name"],
-            "hp":            boss["current_hp"],
-            "max_hp":        boss["max_hp"],
+            "name":          enemy["name"],
             "player_hp":     self._state.hp,
             "player_max_hp": self._state.max_hp,
-            "boss_hp":       boss["current_hp"],
-            "boss_max_hp":   boss["max_hp"],
+            "enemy_hp":      enemy["current_hp"],
+            "enemy_max_hp":  enemy["max_hp"],
         })
         _path = wav_path
         QTimer.singleShot(30_000, lambda: self._cleanup_wav(_path))
@@ -519,8 +547,9 @@ class GameController(QObject):
         self._audio.play_clip(wav_path)
         self._signals.narration_finished.emit()
         self._signals.combat_ended.emit()
-        self._in_combat    = False
-        self._current_boss = None
+        self._in_combat      = False
+        self._current_enemy  = None
+        self._enemy_type     = None
         _path = wav_path
         QTimer.singleShot(30_000, lambda: self._cleanup_wav(_path))
 
@@ -538,16 +567,9 @@ class GameController(QObject):
         logging.debug(f"GameController: transcript='{transcript}'")
 
         room_id    = self._state.current_room_id
-        exits      = self._dungeon.get_exit_names(room_id) if not self._in_combat else []
+        exits      = self._dungeon.get_exit_names(room_id)
         weapons    = [i for i in self._inventory_as_dicts() if i.get("type") == "weapon"] if self._in_combat else []
         room_items = self._room_items_as_dicts(room_id) if not self._in_combat else []
-        if self._in_combat and not weapons:
-            self._signals.processing_finished.emit()
-            self._signals.error_occurred.emit(
-                "You have no weapons! Find a weapon before you can fight."
-            )
-            return
-
         action = self._intent_parser.parse(transcript, exits, weapons, room_items)
         self._handle_action(action)
 
@@ -588,7 +610,7 @@ class GameController(QObject):
         # Record current room name before moving (for narration context)
         self._previous_room_name = self._dungeon.get_room(room_id)["name"]
 
-        # Exit gate: all bosses must be defeated
+        # 1. Exit gate: all bosses must be defeated
         if self._dungeon.get_room(target_id)["type"] == "exit":
             boss_room_ids = self._dungeon.get_all_boss_room_ids()
             boss_ids = [self._dungeon.get_boss_id(r) for r in boss_room_ids]
@@ -596,7 +618,33 @@ class GameController(QObject):
                 self._trigger_exit_blocked_narration()
                 return
 
-        # Boss room entry
+        # 2. Locked room check
+        if (self._dungeon.is_locked(target_id)
+                and target_id not in self._state.unlocked_rooms):
+            required_key = self._dungeon.get_required_key(target_id)
+            key_name = (
+                self._item_registry.get(required_key, {}).get("name")
+                if required_key else None
+            )
+            if required_key and required_key in self._state.inventory:
+                # Player has the key — consume, unlock, move, then narrate unlock
+                self._state.unlock_room(target_id)
+                self._state.remove_from_inventory(required_key)
+                self._state.move_player(target_id)
+                self._state.set_last_action(f"unlocked and moved {direction}")
+                self._state.save()
+                self._emit_state()
+                self._emit_room_items()
+                self._signals.inventory_updated.emit(self._equipment_payload())
+                self._trigger_unlock_narration(target_id)
+                return
+            else:
+                # Blocked — no key
+                room_name = self._dungeon.get_room(target_id)["name"]
+                self._trigger_locked_room_narration(room_name, key_name)
+                return
+
+        # 3. Boss room entry
         boss_id = self._dungeon.get_boss_id(target_id)
         if boss_id and not self._state.is_boss_cleared(boss_id):
             self._state.move_player(target_id)
@@ -606,6 +654,13 @@ class GameController(QObject):
             self._start_combat(boss_id, target_id)
             return
 
+        # 4. Normal movement — cancel any active combat if the player flees
+        if self._in_combat:
+            self._in_combat     = False
+            self._current_enemy = None
+            self._enemy_type    = None
+            self._signals.combat_ended.emit()
+
         self._state.move_player(target_id)
         self._state.set_last_action(f"moved {direction}")
         self._state.save()
@@ -614,12 +669,20 @@ class GameController(QObject):
 
         new_room = self._dungeon.get_room(target_id)
 
-        # Check win condition
+        # 5. Win condition
         if new_room["type"] == "exit":
             self._trigger_win_narration(new_room["name"])
             return
 
-        # Switch background track by room type
+        # 6. Move monsters + check encounter
+        self._monster_manager.move_all(self._dungeon, self._state)
+        self._state.save()
+        monsters_here = self._state.get_monsters_in_room(target_id)
+        if monsters_here:
+            self._start_monster_combat(monsters_here[0], target_id)
+            return
+
+        # 7. Normal room narration
         bg_track = new_room.get("type", "normal")
         if bg_track in ("home", "exit"):
             bg_track = "normal"
@@ -634,18 +697,54 @@ class GameController(QObject):
         if action.item_id not in room_items:
             self._signals.error_occurred.emit("That item is not here.")
             return
-        if not self._state.add_to_inventory(action.item_id):
-            self._signals.error_occurred.emit("Your inventory is full (8 items max).")
-            return
 
-        self._state.remove_room_item(room_id, action.item_id)
-        self._state.save()
-        self._signals.inventory_updated.emit(self._inventory_as_dicts())
-        self._signals.room_items_changed.emit(self._room_items_as_dicts(room_id))
-        self._trigger_pickup_narration(self._item_registry[action.item_id]["name"])
+        item      = self._item_registry.get(action.item_id)
+        if not item:
+            self._signals.error_occurred.emit("Unknown item.")
+            return
+        item_type = item.get("type")
+
+        if item_type == "key":
+            if not self._state.add_to_bag(action.item_id):
+                self._signals.error_occurred.emit("Your bag is full.")
+                return
+            self._state.remove_room_item(room_id, action.item_id)
+            self._state.save()
+            self._signals.inventory_updated.emit(self._equipment_payload())
+            self._signals.room_items_changed.emit(self._room_items_as_dicts(room_id))
+            self._trigger_pickup_narration(item["name"])
+
+        elif item_type in ("weapon", "armor"):
+            slot   = item.get("slot")
+            old_id = self._state.equip_item(slot, action.item_id)
+            self._state.remove_room_item(room_id, action.item_id)
+            if old_id and old_id != "bare_hands":
+                # Drop displaced item back into the room
+                self._state.set_room_items(
+                    room_id, self._state.get_room_items(room_id) + [old_id]
+                )
+            self._state.save()
+            self._signals.inventory_updated.emit(self._equipment_payload())
+            self._signals.room_items_changed.emit(self._room_items_as_dicts(room_id))
+            if old_id and old_id in self._item_registry:
+                self._trigger_swap_narration(item["name"], self._item_registry[old_id]["name"])
+            else:
+                self._trigger_pickup_narration(item["name"])
+
+        elif item_type == "potion":
+            heal_amount = item.get("heal", 0)
+            gained      = self._state.heal(heal_amount)
+            self._state.remove_room_item(room_id, action.item_id)
+            self._state.save()
+            self._emit_state()
+            self._signals.room_items_changed.emit(self._room_items_as_dicts(room_id))
+            self._trigger_potion_narration(item["name"], gained, self._state.hp, self._state.max_hp)
+
+        else:
+            self._signals.error_occurred.emit("You can't pick that up.")
 
     def _handle_attack(self, action: IntentAction) -> None:
-        if not self._in_combat or self._current_boss is None:
+        if not self._in_combat or self._current_enemy is None:
             self._signals.error_occurred.emit("You are not in combat.")
             return
         if action.item_id not in self._state.inventory:
@@ -654,45 +753,45 @@ class GameController(QObject):
 
         item   = self._item_registry[action.item_id]
         self._last_attack_item_id = action.item_id
-        result = self._combat_manager.resolve(item, self._current_boss)
+        result = self._combat_manager.resolve(item, self._current_enemy)
 
-        new_boss_hp   = max(0, self._current_boss["current_hp"] - result.player_damage)
-        new_player_hp = max(0, self._state.hp - result.boss_damage)
+        new_enemy_hp  = max(0, self._current_enemy["current_hp"] - result.player_damage)
+        defense       = self._compute_total_defense()
+        new_player_hp = max(0, self._state.hp - max(0, result.boss_damage - defense))
 
-        self._current_boss["current_hp"]  = new_boss_hp
-        self._state.set_boss_hp(self._current_boss["id"], new_boss_hp)
-        self._state._data["player"]["hp"] = new_player_hp
+        self._current_enemy["current_hp"]  = new_enemy_hp
+        self._state._data["player"]["hp"]  = new_player_hp
+
+        if self._enemy_type == "boss":
+            self._state.set_boss_hp(self._current_enemy["id"], new_enemy_hp)
+            # Play pre-generated skill stinger (boss only)
+            taunt_wav = BOSSES_AUDIO_DIR / self._current_enemy["id"] / f"{result.skill_id}.wav"
+            if taunt_wav.exists():
+                self._audio.play_sfx(str(taunt_wav))
+        else:
+            self._state.set_monster_hp(self._current_enemy["id"], new_enemy_hp)
+
         self._state.save()
-
-        # Play pre-generated skill stinger on separate channel (concurrent with narration)
-        taunt_wav = BOSSES_AUDIO_DIR / self._current_boss["id"] / f"{result.skill_id}.wav"
-        if taunt_wav.exists():
-            self._audio.play_sfx(str(taunt_wav))
 
         self._signals.combat_updated.emit({
             "player_hp":     new_player_hp,
             "player_max_hp": self._state.max_hp,
-            "boss_hp":       new_boss_hp,
-            "boss_max_hp":   self._current_boss["max_hp"],
+            "enemy_hp":      new_enemy_hp,
+            "enemy_max_hp":  self._current_enemy["max_hp"],
         })
 
-        if new_boss_hp <= 0:
-            self._finish_boss_combat()
+        if new_enemy_hp <= 0:
+            if self._enemy_type == "boss":
+                self._finish_boss_combat()
+            else:
+                self._finish_monster_combat()
             return
 
         if new_player_hp <= 0:
-            self._signals.error_occurred.emit(
-                "You have been defeated. Hold [SPACE] to play again."
-            )
-            self._state.reset()
-            self._in_combat    = False
-            self._current_boss = None
-            self._signals.combat_ended.emit()
-            self._emit_state()
-            self._emit_inventory()
+            self._trigger_death_narration(self._current_enemy["name"])
             return
 
-        self._trigger_combat_round_narration(result, new_boss_hp, new_player_hp)
+        self._trigger_combat_round_narration(result, new_enemy_hp, new_player_hp)
 
     # ── Combat helpers ────────────────────────────────────────────────────────
 
@@ -701,19 +800,205 @@ class GameController(QObject):
         boss_data  = dict(self._boss_registry[boss_id])
         current_hp = self._state.get_boss_hp(boss_id, boss_data["max_hp"])
         boss_data["current_hp"] = current_hp
-        self._current_boss = boss_data
-        self._in_combat    = True
+        self._current_enemy = boss_data
+        self._enemy_type    = "boss"
+        self._in_combat     = True
 
         self._audio.play_bg("boss")
         self._trigger_boss_entry_narration(boss_id, room_id)
 
+    def _start_monster_combat(self, monster_id: str, room_id: str) -> None:
+        """Enter combat with the given roaming monster."""
+        monster_data  = dict(self._monster_registry[monster_id])
+        current_hp    = self._state.get_monster_hp(monster_id, monster_data["max_hp"])
+        monster_data["current_hp"] = current_hp
+        self._current_enemy = monster_data
+        self._enemy_type    = "monster"
+        self._in_combat     = True
+
+        self._audio.play_bg("boss")
+        self._trigger_monster_encounter_narration(room_id)
+
     def _finish_boss_combat(self) -> None:
         """Called when boss HP reaches 0."""
-        boss_id = self._current_boss["id"]
+        boss_id = self._current_enemy["id"]
         self._state.mark_boss_cleared(boss_id)
         self._state.save()
         self._trigger_boss_defeat_narration()
-        # _in_combat and _current_boss are cleared in _on_boss_defeat_narration_done
+        # _in_combat and _current_enemy are cleared in _on_boss_defeat_narration_done
+
+    def _finish_monster_combat(self) -> None:
+        """Called when monster HP reaches 0."""
+        monster_id = self._current_enemy["id"]
+        self._state.remove_monster(monster_id)
+        self._state.save()
+        self._trigger_monster_defeat_narration()
+        # _in_combat and _current_enemy are cleared in _on_monster_defeat_narration_done
+
+    def restart_after_death(self) -> None:
+        """Called by MainWindow after the Game Over dialog is dismissed."""
+        self._state.reset()
+        self._in_combat      = False
+        self._current_enemy  = None
+        self._enemy_type     = None
+        self._previous_room_name = None
+
+        self._emit_state()
+        self._emit_inventory()
+        self._emit_room_items()
+        self._signals.combat_ended.emit()
+
+        self._scatter_items()
+        self._scatter_monsters()
+
+        self._trigger_narration()
+
+    def _compute_total_defense(self) -> int:
+        """Sum of defense values across all equipped armor slots."""
+        total = 0
+        for slot, item_id in self._state.equipped.items():
+            if slot != "weapon" and item_id and item_id in self._item_registry:
+                total += self._item_registry[item_id].get("defense", 0)
+        return total
+
+    def _trigger_potion_narration(
+        self, item_name: str, hp_gained: int, new_hp: int, max_hp: int
+    ) -> None:
+        """Spawn narration for drinking a healing potion."""
+        self._signals.narration_started.emit()
+        room_name = self._dungeon.get_room(self._state.current_room_id)["name"]
+
+        def fn():
+            return self._narrator.narrate_potion_use(item_name, hp_gained, new_hp, max_hp, room_name)
+
+        self._narration_worker = SimpleNarrationWorker(fn)
+        self._narration_worker.finished.connect(self._on_narration_done)
+        self._narration_worker.error.connect(self._on_narration_error)
+        self._narration_worker.start()
+
+    def _trigger_swap_narration(self, new_name: str, old_name: str) -> None:
+        """Spawn narration for swapping one equipment piece for another."""
+        self._signals.narration_started.emit()
+        room_name = self._dungeon.get_room(self._state.current_room_id)["name"]
+
+        def fn():
+            return self._narrator.narrate_swap(new_name, old_name, room_name)
+
+        self._narration_worker = SimpleNarrationWorker(fn)
+        self._narration_worker.finished.connect(self._on_narration_done)
+        self._narration_worker.error.connect(self._on_narration_error)
+        self._narration_worker.start()
+
+    # ── Phase 3 narration triggers ────────────────────────────────────────────
+
+    def _trigger_monster_encounter_narration(self, room_id: str) -> None:
+        self._signals.narration_started.emit()
+        monster   = self._current_enemy
+        room      = self._dungeon.get_room(room_id)
+        prev      = self._previous_room_name
+
+        def fn():
+            return self._narrator.narrate_monster_encounter(monster["name"], room, prev)
+
+        self._narration_worker = SimpleNarrationWorker(fn)
+        self._narration_worker.finished.connect(self._on_monster_encounter_narration_done)
+        self._narration_worker.error.connect(self._on_narration_error)
+        self._narration_worker.start()
+
+    def _trigger_monster_defeat_narration(self) -> None:
+        self._signals.narration_started.emit()
+        monster_name = self._current_enemy["name"]
+
+        def fn():
+            return self._narrator.narrate_monster_defeat(monster_name)
+
+        self._narration_worker = SimpleNarrationWorker(fn)
+        self._narration_worker.finished.connect(self._on_monster_defeat_narration_done)
+        self._narration_worker.error.connect(self._on_narration_error)
+        self._narration_worker.start()
+
+    def _trigger_death_narration(self, killer_name: str) -> None:
+        self._signals.narration_started.emit()
+        room_name = self._dungeon.get_room(self._state.current_room_id)["name"]
+
+        def fn():
+            return self._narrator.narrate_death(room_name, killer_name)
+
+        self._narration_worker = SimpleNarrationWorker(fn)
+        self._narration_worker.finished.connect(self._on_death_narration_done)
+        self._narration_worker.error.connect(self._on_narration_error)
+        self._narration_worker.start()
+
+    def _trigger_locked_room_narration(self, room_name: str, key_name: str | None) -> None:
+        self._signals.narration_started.emit()
+
+        def fn():
+            return self._narrator.narrate_locked_room(room_name, key_name)
+
+        self._narration_worker = SimpleNarrationWorker(fn)
+        self._narration_worker.finished.connect(self._on_narration_done)
+        self._narration_worker.error.connect(self._on_narration_error)
+        self._narration_worker.start()
+
+    def _trigger_unlock_narration(self, room_id: str) -> None:
+        self._signals.narration_started.emit()
+        room_name = self._dungeon.get_room(room_id)["name"]
+
+        def fn():
+            return self._narrator.narrate_unlock(room_name)
+
+        self._narration_worker = SimpleNarrationWorker(fn)
+        self._narration_worker.finished.connect(self._on_unlock_narration_done)
+        self._narration_worker.error.connect(self._on_narration_error)
+        self._narration_worker.start()
+
+    # ── Phase 3 narration slots ────────────────────────────────────────────────
+
+    def _on_monster_encounter_narration_done(self, text: str, wav_path: str) -> None:
+        """After monster encounter narration, emit combat_started to show HP in UI."""
+        self._signals.narration_text.emit(text)
+        self._audio.play_clip(wav_path)
+        self._signals.narration_finished.emit()
+        enemy = self._current_enemy
+        self._signals.combat_started.emit({
+            "name":          enemy["name"],
+            "player_hp":     self._state.hp,
+            "player_max_hp": self._state.max_hp,
+            "enemy_hp":      enemy["current_hp"],
+            "enemy_max_hp":  enemy["max_hp"],
+        })
+        _path = wav_path
+        QTimer.singleShot(30_000, lambda: self._cleanup_wav(_path))
+
+    def _on_monster_defeat_narration_done(self, text: str, wav_path: str) -> None:
+        self._signals.narration_text.emit(text)
+        self._audio.play_clip(wav_path)
+        self._signals.narration_finished.emit()
+        self._signals.combat_ended.emit()
+        self._in_combat      = False
+        self._current_enemy  = None
+        self._enemy_type     = None
+        self._audio.play_bg("normal")
+        self._trigger_narration()
+        _path = wav_path
+        QTimer.singleShot(30_000, lambda: self._cleanup_wav(_path))
+
+    def _on_death_narration_done(self, text: str, wav_path: str) -> None:
+        self._signals.narration_text.emit(text)
+        self._audio.play_clip(wav_path)
+        self._signals.game_over.emit(text, wav_path)
+        # State reset handled by MainWindow._on_game_over → controller.restart_after_death()
+        _path = wav_path
+        QTimer.singleShot(30_000, lambda: self._cleanup_wav(_path))
+
+    def _on_unlock_narration_done(self, text: str, wav_path: str) -> None:
+        """After unlock narration, narrate the newly entered room."""
+        self._signals.narration_text.emit(text)
+        self._audio.play_clip(wav_path)
+        self._signals.narration_finished.emit()
+        self._trigger_narration()
+        _path = wav_path
+        QTimer.singleShot(30_000, lambda: self._cleanup_wav(_path))
 
     # ── Cleanup ───────────────────────────────────────────────────────────────
 
