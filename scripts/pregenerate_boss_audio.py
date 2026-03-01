@@ -22,7 +22,7 @@ load_dotenv()
 
 from config import BOSSES_FILE, BOSSES_AUDIO_DIR
 from ai.mistral_client import MistralClient
-from ai.tts_client import TTSClient
+from ai.tts_client import TTSClient, TTSElevenLabsClient, TTSOpenAIClient  # noqa: F401
 from ai.prompts import build_narration_system_prompt, build_boss_taunt_user_prompt
 
 

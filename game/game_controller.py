@@ -10,7 +10,7 @@ from PyQt6.QtCore import QObject, QThread, QTimer, pyqtSignal
 from ai.intent_parser import IntentAction, IntentParser
 from ai.mistral_client import MistralClient
 from ai.narrator import Narrator
-from ai.tts_client import TTSClient
+from ai.tts_client import TTSClient, TTSElevenLabsClient, TTSOpenAIClient  # noqa: F401
 from audio.audio_manager import AudioManager
 from audio.deepgram_stt import DeepgramSTTWorker
 from config import (
