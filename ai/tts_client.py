@@ -47,6 +47,7 @@ class TTSClient:
             voice=voice or TTS_VOICE,
             input=text,
             response_format=TTS_FORMAT,
+            speed=2.0,
         )
         response.stream_to_file(tmp.name)
         logging.debug(f"TTSClient: wrote speech to {tmp.name}")

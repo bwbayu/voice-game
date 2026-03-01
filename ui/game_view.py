@@ -260,6 +260,7 @@ class GameView(QWidget):
         # Exits & Mic Status
         self.lbl_exits = QLabel("Exits: —")
         self.lbl_exits.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_exits.setWordWrap(True)
         ui_layout.addWidget(self.lbl_exits)
 
         self.lbl_status = QLabel("Initializing...")
@@ -402,7 +403,7 @@ class GameView(QWidget):
         exits = payload["exits"]
         self.lbl_room.setText(room["name"])
         if exits:
-            self.lbl_exits.setText(f"Paths:  " + "  •  ".join(f"[{d.upper()}]" for d in exits.keys()))
+            self.lbl_exits.setText(f"Paths:  " + "  •  ".join(f"[{d.upper()}] {name}" for d, name in exits.items()))
         else:
             self.lbl_exits.setText("No Way Out.")
             

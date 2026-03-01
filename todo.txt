@@ -1,7 +1,0 @@
-- add miss mechanism when combat
-- fix UI design
-- remove dynamic narrator to static narrator
-
-- when in boss or monster room, we can leave even though the boss or monster is not killed. because when i try to leave the boss and move to other room, i kept getting unknown
-11:41:41  DEBUG     IntentParser: 'go to west' → action='unknown' direction=None item_id=None
-11:41:19  DEBUG     IntentParser: 'down down' → action='unknown' direction=None item_id=None
