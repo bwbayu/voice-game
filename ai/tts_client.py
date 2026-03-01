@@ -92,6 +92,9 @@ class TTSElevenLabsClient(TTSClient):
             model_id=self._model,
             text=text,
             output_format="mp3_44100_128",
+            voice_settings={
+                "speed": 1.2,  # 0.7 - 1.2
+            }
         )
 
         tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
