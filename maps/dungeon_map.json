@@ -1,0 +1,91 @@
+{
+  "map_id": "default_dungeon",
+  "theme": "dungeon",
+  "rooms": {
+    "home": {
+      "id": "home",
+      "type": "home",
+      "name": "The Dungeon Gate",
+      "description_hint": "rusted iron door, flickering torch sconces, ancient warning carved in stone, damp stone walls",
+      "exits": {
+        "left": "a",
+        "right": "b"
+      },
+      "bg_image":"assets/image/home.png"
+    },
+    "a": {
+      "id": "a",
+      "type": "normal",
+      "name": "Hall of Fallen Warriors",
+      "description_hint": "skeletal soldiers in rusted armor leaning against walls, a stone table with a faded dungeon map, four doorways",
+      "exits": {
+        "back": "home",
+        "north": "b",
+        "south": "boss",
+        "down": "t"
+      },
+      "bg_image":"assets/image/a.png"
+    },
+    "b": {
+      "id": "b",
+      "type": "normal",
+      "name": "The Forbidden Library",
+      "description_hint": "tall wooden shelves packed with black leather-bound books, some volumes trembling on their own, a nearly-spent candle on a reading desk",
+      "exits": {
+        "back": "home",
+        "west": "a",
+        "down": "boss"
+      },
+      "bg_image":"assets/image/b.png"
+    },
+    "boss": {
+      "id": "boss",
+      "type": "boss",
+      "boss_id": "guardian",
+      "name": "The Guardian's Throne",
+      "description_hint": "vaulted chamber with a ceiling lost in darkness, obsidian throne surrounded by massive claw marks scratched into the stone floor, five passages leading outward",
+      "exits": {
+        "north": "a",
+        "northeast": "b",
+        "west": "c",
+        "east": "d",
+        "down": "t"
+      },
+      "bg_image":"assets/image/boss.png"
+    },
+    "c": {
+      "id": "c",
+      "type": "normal",
+      "name": "The Underground Prison",
+      "description_hint": "rows of rusted iron cells along a narrow corridor, tally marks scratched deep into the walls, smell of rot and the sound of dripping water",
+      "exits": {
+        "east": "boss",
+        "down": "t"
+      },
+      "bg_image":"assets/image/c.png"
+    },
+    "d": {
+      "id": "d",
+      "type": "normal",
+      "name": "The Forgotten Armory",
+      "description_hint": "racks of broken swords and shattered shields, a small iron chest with a red wax seal sitting untouched in the far corner",
+      "exits": {
+        "down": "t"
+      },
+      "bg_image":"assets/image/d.png"
+    },
+    "t": {
+      "id": "t",
+      "type": "exit",
+      "name": "Chamber of the Dark Core",
+      "description_hint": "the deepest chamber, black crystal floor reflecting slightly wrong shadows, a stone altar at the centre with a pulsing red crystal that beats like a heart",
+      "exits": {
+        "upper-west": "boss",
+        "north": "c",
+        "northeast": "d",
+        "upper-east": "a"
+      },
+      "bg_image":"assets/image/t.png"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "player": {
+    "current_room": "home",
+    "hp": 100,
+    "max_hp": 100,
+    "inventory": [],
+    "last_action": "game started"
+  },
+  "world": {
+    "cleared_bosses": [],
+    "room_items": {},
+    "boss_hp": {},
+    "monster_positions": {},
+    "unlocked_rooms": []
+  },
+  "meta": {
+    "theme": "dungeon",
+    "difficulty": "medium",
+    "session_start": "2026-02-28T19:31:31.342071+00:00"
+  }
+}

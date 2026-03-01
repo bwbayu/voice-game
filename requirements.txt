@@ -1,5 +1,11 @@
 mistralai
 python-dotenv
 openai
-PyQt6
 elevenlabs
+PyQt6
+pyaudio
+numpy
+pygame
+websockets
+websocket-client
+deepgram-sdk
