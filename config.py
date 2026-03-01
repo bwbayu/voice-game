@@ -19,7 +19,7 @@ BOSSES_AUDIO_DIR = ROOT_DIR / "audio" / "bosses"
 # ── Audio recording (Mistral realtime requires pcm_s16le @ 16kHz) ──
 SAMPLE_RATE       = 16000   # Hz
 CHUNK_DURATION_MS = 480     # ms per audio chunk sent to Mistral
-BG_VOLUME         = 0.4     # 0.0 – 1.0
+BG_VOLUME         = 0.05     # 0.0 – 1.0
 
 # ── TTS (OpenAI) ──────────────────────────────────────
 TTS_MODEL  = "tts-1"
@@ -34,9 +34,16 @@ STT_MODEL    = "voxtral-mini-transcribe-realtime-2602"
 # ── Game settings ─────────────────────────────────────
 INVENTORY_CAP = 8
 
-# ── UI colours ────────────────────────────────────────
-BG_COLOR     = "#1a1a2e"
-TEXT_COLOR   = "#e0e0e0"
-ACCENT_COLOR = "#c0a060"
-STATUS_COLOR = "#80c080"
-DIM_COLOR    = "#505060"
+# ── UI colours & Typography ───────────────────────────
+BG_COLOR         = "#0B0C10"  # Obsidian Black / Dark Slate
+TEXT_COLOR       = "#E0E6ED"  # Bone white
+ACCENT_COLOR     = "#D4AF37"  # Faded Gold
+STATUS_COLOR     = "#D4AF37"  # Kita samakan dengan emas agar elegan
+DIM_COLOR        = "#505060"  # Abu-abu redup
+CRIMSON_RED      = "#8B0000"  # Untuk HP bar / Boss
+BOSS_ALIVE_COLOR = "#FF4500"  # Merah terang untuk boss yang hidup
+MONSTER_COLOR    = "#CC8833"
+ITEM_COLOR       = "#7799AA"
+
+FONT_TITLE       = "Georgia"  # Font serif untuk kesan Dark Fantasy
+FONT_BODY        = "Georgia"

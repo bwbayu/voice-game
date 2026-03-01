@@ -137,6 +137,7 @@ class TTSOpenAIClient(TTSClient):
             model=self._model,
             voice=voice or self._voice,
             input=text,
+            speed=2.0,
             response_format=self._format,
         )
         response.stream_to_file(tmp.name)

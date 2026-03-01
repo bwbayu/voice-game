@@ -14,9 +14,10 @@ Z-order:
 """
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QBrush, QColor, QPen
+from PyQt6.QtGui import QBrush, QColor, QPen, QPixmap
 from PyQt6.QtWidgets import (
     QCheckBox,
+    QFrame,
     QGraphicsLineItem,
     QGraphicsRectItem,
     QGraphicsScene,
@@ -29,7 +30,13 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from config import BG_COLOR
+from config import (
+    ASSETS_DIR, BG_COLOR, TEXT_COLOR, ACCENT_COLOR, DIM_COLOR,
+    CRIMSON_RED, BOSS_ALIVE_COLOR, MONSTER_COLOR, ITEM_COLOR, FONT_BODY
+)
+
+_ICONS_DIR  = ASSETS_DIR / "icons"
+_ICON_SIZE  = 28   # px for Player Status icons
 
 # ── Layout constants ───────────────────────────────────────────────────────────
 
@@ -86,26 +93,39 @@ _ROOM_NAMES: dict[str, str] = {
     "t":    "Dark Core",
 }
 
-_TYPE_FILL: dict[str, str] = {
-    "home":   "#16213e",
-    "normal": "#2a2a3a",
-    "boss":   "#3a1010",
-    "exit":   "#0d2b1a",
-}
+
 
 # Colours
-_COL_EDGE         = "#3a3a4a"
-_COL_BORDER_NORM  = "#444455"
-_COL_BORDER_PLAY  = "#ffff00"   # player location — yellow, 3 px
-_COL_BORDER_LOCK  = "#8855aa"   # locked room — purple, 2 px
-_COL_BORDER_BOSS  = "#cc2222"   # boss alive — red, 2 px
-_COL_FILL_DEAD    = "#1e1e1e"   # grayed-out cleared boss
-_COL_NAME         = "#c8c8d8"
-_COL_NAME_DIM     = "#606070"
-_COL_BOSS_ALIVE   = "#dd4444"
-_COL_MONSTER      = "#cc8833"
-_COL_ITEM         = "#7799aa"
-_COL_TITLE        = "#c0a060"
+_COL_EDGE         = "#4A4A5A"  # Bisa tetap hardcode untuk map-specific
+_COL_BORDER_NORM  = "#555566"
+_COL_BORDER_PLAY  = ACCENT_COLOR
+_COL_BORDER_LOCK  = "#8855AA"
+_COL_BORDER_BOSS  = CRIMSON_RED
+_COL_FILL_DEAD    = BG_COLOR  
+_COL_NAME         = TEXT_COLOR
+_COL_NAME_DIM     = DIM_COLOR
+_COL_BOSS_ALIVE   = BOSS_ALIVE_COLOR
+_COL_MONSTER      = MONSTER_COLOR
+_COL_ITEM         = ITEM_COLOR
+_COL_TITLE        = ACCENT_COLOR
+_COL_STATUS_BG    = f"rgba(11, 12, 16, 0.95)" # Transparan base background
+
+_TYPE_FILL = {
+    "home":   BG_COLOR,
+    "normal": BG_COLOR,
+    "boss":   "#1A0D0D",  # Sedikit tint merah untuk boss room
+    "exit":   "#0A1A10",
+}
+
+def _load_icon(name: str) -> QPixmap | None:
+    px = QPixmap(str(_ICONS_DIR / name))
+    if px.isNull():
+        return None
+    return px.scaled(
+        _ICON_SIZE, _ICON_SIZE,
+        Qt.AspectRatioMode.KeepAspectRatio,
+        Qt.TransformationMode.SmoothTransformation,
+    )
 
 
 class MapPanel(QWidget):
@@ -166,10 +186,10 @@ class MapPanel(QWidget):
         self._view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._view.setStyleSheet(f"background-color: {BG_COLOR}; border: none;")
-        self._view.setFixedSize(PANEL_WIDTH - 16, SCENE_H + 4)
-        outer.addWidget(self._view)
-
-        outer.addStretch()
+        self._view.setFixedWidth(PANEL_WIDTH - 16)
+        self._view.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+        self._view.setMinimumHeight(180)
+        outer.addWidget(self._view, stretch=6)
 
         # Bottom row — toggle checkbox
         bottom = QHBoxLayout()
@@ -183,6 +203,9 @@ class MapPanel(QWidget):
         bottom.addWidget(self._toggle_cb)
         bottom.addStretch()
         outer.addLayout(bottom)
+
+        # ── Player Status section ──────────────────────────────────────────────
+        self._build_status_section(outer)
 
     # ── Scene construction ─────────────────────────────────────────────────────
 
@@ -276,48 +299,138 @@ class MapPanel(QWidget):
             pen.setWidth(1)
         rect.setPen(pen)
 
-    def _build_html(
-        self,
-        room_id: str,
-        is_locked: bool,
-        boss_name: str | None,
-        boss_cleared: bool,
-        items_list: list[str],
-        monsters: list[str],
-    ) -> str:
-        lock_str   = " \U0001f512" if is_locked else ""
+    def _build_status_section(self, parent_layout: QVBoxLayout) -> None:
+        """Build the Player Status panel appended below the map."""
+        status_frame = QFrame()
+        status_frame.setStyleSheet(
+            f"QFrame {{ background-color: {_COL_STATUS_BG}; "
+            f"border-top: 1px solid #2a2a3a; border-radius: 0px; }}"
+        )
+        sf_layout = QVBoxLayout(status_frame)
+        sf_layout.setContentsMargins(12, 10, 12, 10)
+        sf_layout.setSpacing(4)
+
+        # Title
+        ps_title = QLabel("PLAYER STATUS")
+        ps_title.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        ps_title.setStyleSheet(
+            f"font-size: 13px; font-weight: bold; letter-spacing: 2px; "
+            f"color: {_COL_TITLE}; background: transparent; border: none;"
+        )
+        sf_layout.addWidget(ps_title)
+
+        # HP row: [heart icon] hp_label
+        hp_row = QWidget()
+        hp_row.setStyleSheet("background: transparent;")
+        hp_h = QHBoxLayout(hp_row)
+        hp_h.setContentsMargins(0, 4, 0, 0)
+        hp_h.setSpacing(8)
+
+        self._icon_heart = QLabel()
+        px = _load_icon("heart.png")
+        if px:
+            self._icon_heart.setPixmap(px)
+        self._icon_heart.setFixedSize(_ICON_SIZE, _ICON_SIZE)
+        self._icon_heart.setStyleSheet("background: transparent; border: none;")
+        hp_h.addWidget(self._icon_heart)
+
+        self.lbl_ps_hp = QLabel("100/100")
+        self.lbl_ps_hp.setStyleSheet(
+            "font-size: 14px; font-weight: bold; color: #e06060; "
+            "background: transparent; border: none;"
+        )
+        hp_h.addWidget(self.lbl_ps_hp)
+        hp_h.addStretch()
+        sf_layout.addWidget(hp_row)
+
+        # Bag icon row
+        bag_row = QWidget()
+        bag_row.setStyleSheet("background: transparent;")
+        bag_h = QHBoxLayout(bag_row)
+        bag_h.setContentsMargins(0, 4, 0, 0)
+        bag_h.setSpacing(8)
+
+        self._icon_bag = QLabel()
+        px = _load_icon("inventory.png")
+        if px:
+            self._icon_bag.setPixmap(px)
+        self._icon_bag.setFixedSize(_ICON_SIZE, _ICON_SIZE)
+        self._icon_bag.setStyleSheet("background: transparent; border: none;")
+        bag_h.addWidget(self._icon_bag)
+        bag_h.addStretch()
+        sf_layout.addWidget(bag_row)
+
+        # Weapon / Armor / Bag text
+        for attr in ("lbl_ps_weapon", "lbl_ps_armor", "lbl_ps_bag"):
+            lbl = QLabel("")
+            lbl.setWordWrap(True)
+            lbl.setStyleSheet(
+                "font-size: 12px; color: #a0a0b8; "
+                "background: transparent; border: none;"
+            )
+            setattr(self, attr, lbl)
+            sf_layout.addWidget(lbl)
+
+        # Defaults
+        self.lbl_ps_weapon.setText("Weapon: [none]")
+        self.lbl_ps_armor.setText("Armor: [none]")
+        self.lbl_ps_bag.setText("")
+
+        parent_layout.addWidget(status_frame, stretch=4)
+
+    def _build_html(self, room_id: str, is_locked: bool, boss_name: str | None, boss_cleared: bool, items_list: list[str], monsters: list[str]) -> str:
+        lock_str   = " 🔒" if is_locked else ""
         name_color = _COL_NAME_DIM if boss_cleared else _COL_NAME
 
         lines = [
-            f'<span style="font-size:10px; font-weight:bold; color:{name_color};">'
+            f'<div style="text-align: center; font-family: \'{FONT_BODY}\', serif;">'
+            f'<span style="font-size:11px; font-weight:bold; color:{name_color};">'
             f"{_ROOM_NAMES[room_id]}{lock_str}</span>"
         ]
 
         if boss_name:
             if boss_cleared:
-                lines.append(
-                    f'<span style="font-size:8px; color:{_COL_NAME_DIM};">'
-                    f"{boss_name} [dead]</span>"
-                )
+                lines.append(f'<br><span style="font-size:9px; color:{_COL_NAME_DIM};">{boss_name} [dead]</span>')
             else:
-                lines.append(
-                    f'<span style="font-size:8px; color:{_COL_BOSS_ALIVE};">'
-                    f"{boss_name}</span>"
-                )
+                lines.append(f'<br><span style="font-size:10px; font-weight:bold; color:{_COL_BOSS_ALIVE};">{boss_name}</span>')
 
         for m in monsters:
-            lines.append(
-                f'<span style="font-size:8px; color:{_COL_MONSTER};">{m}</span>'
-            )
+            lines.append(f'<br><span style="font-size:9px; color:{_COL_MONSTER};">{m}</span>')
 
         for itm in items_list[:2]:
-            lines.append(
-                f'<span style="font-size:8px; color:{_COL_ITEM};">{itm}</span>'
-            )
-        if len(items_list) > 2:
-            lines.append(
-                f'<span style="font-size:7px; color:{_COL_NAME_DIM};">'
-                f"+{len(items_list) - 2} more</span>"
-            )
+            lines.append(f'<br><span style="font-size:9px; color:{_COL_ITEM};">{itm}</span>')
+        
+        lines.append('</div>')
+        return "".join(lines)
 
-        return "<br/>".join(lines)
+    # ── Player Status public slots ─────────────────────────────────────────────
+
+    def update_player_hp(self, hp: int, max_hp: int) -> None:
+        """Update the HP display in the Player Status panel."""
+        self.lbl_ps_hp.setText(f"{hp}/{max_hp}")
+
+    def update_player_status(self, payload: dict) -> None:
+        """
+        Slot for inventory_updated signal.
+        payload = {"equipped": {slot: item_dict | None}, "bag": [item_dicts]}
+        """
+        equipped = payload.get("equipped", {})
+        bag      = payload.get("bag", [])
+
+        w = equipped.get("weapon")
+        self.lbl_ps_weapon.setText(
+            f"Weapon: {w['name']}  (ATK {w.get('damage', 0)})" if w else "Weapon: [none]"
+        )
+
+        _ARMOR_SLOTS = ("helmet", "suit", "legs", "shoes", "cloak", "shield")
+        parts = [
+            f"{slot.title()}: {equipped[slot]['name']} (DEF {equipped[slot].get('defense', 0)})"
+            for slot in _ARMOR_SLOTS if equipped.get(slot)
+        ]
+        self.lbl_ps_armor.setText(
+            "Armor: " + "  |  ".join(parts) if parts else "Armor: [none]"
+        )
+
+        self.lbl_ps_bag.setText(
+            "Bag: " + ",  ".join(i["name"] for i in bag) if bag else ""
+        )
