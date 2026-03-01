@@ -4,10 +4,8 @@ TTS abstraction layer.
 Hierarchy:
     TTSClient          – abstract base class
     ├── TTSElevenLabsClient  – ElevenLabs TTS (default)
-    └── TTSOpenAIClient      – OpenAI TTS (tts-1)
 
 Calling TTSClient() returns a TTSElevenLabsClient by default.
-To use OpenAI instead, instantiate TTSOpenAIClient() directly.
 """
 from __future__ import annotations
 
@@ -100,46 +98,4 @@ class TTSElevenLabsClient(TTSClient):
         tmp.close()
         save(audio, tmp.name)
         logging.debug("TTSElevenLabsClient: wrote speech to %s", tmp.name)
-        return tmp.name
-
-
-# ── OpenAI backend ────────────────────────────────────────────────────────────
-
-class TTSOpenAIClient(TTSClient):
-    """
-    Wraps OpenAI TTS (tts-1).
-    Returns the path to a temporary WAV file containing the generated speech.
-    """
-
-    def __init__(self):
-        from openai import OpenAI  # lazy import
-        from config import TTS_MODEL, TTS_VOICE, TTS_FORMAT  # lazy import
-
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise EnvironmentError(
-                "OPENAI_API_KEY is not set. Add it to your .env file."
-            )
-        self._client = OpenAI(api_key=api_key)
-        self._model  = TTS_MODEL
-        self._voice  = TTS_VOICE
-        self._format = TTS_FORMAT
-        logging.info("TTSOpenAIClient: initialised.")
-
-    def speak(self, text: str, voice: str | None = None) -> str:
-        if not text.strip():
-            raise ValueError("TTSOpenAIClient.speak: received empty text.")
-
-        tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
-        tmp.close()
-
-        response = self._client.audio.speech.create(
-            model=self._model,
-            voice=voice or self._voice,
-            input=text,
-            speed=2.0,
-            response_format=self._format,
-        )
-        response.stream_to_file(tmp.name)
-        logging.debug("TTSOpenAIClient: wrote speech to %s", tmp.name)
         return tmp.name

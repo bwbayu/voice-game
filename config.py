@@ -21,11 +21,6 @@ SAMPLE_RATE       = 16000   # Hz
 CHUNK_DURATION_MS = 480     # ms per audio chunk sent to Mistral
 BG_VOLUME         = 0.05     # 0.0 – 1.0
 
-# ── TTS (OpenAI) ──────────────────────────────────────
-TTS_MODEL  = "tts-1"
-TTS_VOICE  = "onyx"
-TTS_FORMAT = "wav"
-
 # ── LLM / STT (Mistral) ───────────────────────────────
 LLM_MODEL    = "mistral-large-latest"
 INTENT_MODEL = "ministral-8b-latest"   # small model is fine for command extraction

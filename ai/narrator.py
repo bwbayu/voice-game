@@ -1,7 +1,7 @@
 import logging
 
 from ai.mistral_client import MistralClient
-from ai.tts_client import TTSClient, TTSElevenLabsClient, TTSOpenAIClient  # noqa: F401
+from ai.tts_client import TTSClient
 from ai.prompts import (
     build_narration_system_prompt,
     build_narration_user_prompt,
@@ -26,7 +26,7 @@ class Narrator:
     Orchestrates the full narration pipeline:
       1. Build a prompt from room data.
       2. Call Mistral LLM → narration text.
-      3. Call OpenAI TTS → WAV file.
+      3. Call elevenlabs TTS → WAV file.
       4. Return (text, wav_path) tuple.
 
     All methods are blocking and MUST be called from a worker thread,

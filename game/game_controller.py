@@ -208,7 +208,7 @@ class GameController(QObject):
         self._is_recording = True
         self._stt_stop_event = threading.Event()
         # self._stt_worker = MistralSTTWorker(self._mistral.api_key, self._stt_stop_event)  # Mistral STT (kept for reference)
-        self._stt_worker = STTWorker(self._stt_stop_event)  # default → DeepgramSTTWorker
+        self._stt_worker = STTWorker(self._stt_stop_event)  # default
         self._stt_worker.transcript_delta.connect(self._on_transcript_delta)
         self._stt_worker.transcript_ready.connect(self._on_transcript_ready)
         self._stt_worker.error.connect(self._on_stt_error)
