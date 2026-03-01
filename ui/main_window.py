@@ -1,10 +1,11 @@
 import logging
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QMainWindow, QMessageBox, QWidget, QVBoxLayout
+from PyQt6.QtWidgets import QMainWindow, QMessageBox, QWidget, QHBoxLayout
 
 from config import BG_COLOR, TEXT_COLOR
 from ui.game_view import GameView
+from ui.map_panel import MapPanel
 from ui.signals import AppSignals
 
 
@@ -32,17 +33,21 @@ class MainWindow(QMainWindow):
         self._recording  = False
 
         self.setWindowTitle("Blind Dungeon")
-        self.setMinimumSize(700, 500)
+        self.setMinimumSize(1200, 650)
         self.setStyleSheet(f"background-color: {BG_COLOR}; color: {TEXT_COLOR};")
 
-        # Central widget
+        # Central widget — game view (left, stretches) + map panel (right, fixed width)
         central = QWidget()
         self.setCentralWidget(central)
-        layout = QVBoxLayout(central)
+        layout = QHBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
         self._game_view = GameView()
-        layout.addWidget(self._game_view)
+        layout.addWidget(self._game_view, stretch=1)
+
+        self._map_panel = MapPanel()
+        layout.addWidget(self._map_panel, stretch=0)
 
         self._connect_signals()
 
@@ -76,6 +81,7 @@ class MainWindow(QMainWindow):
         )
         self._signals.error_occurred.connect(self._on_error)
         self._signals.game_won.connect(self._on_game_won)
+        self._signals.game_over.connect(self._on_game_over)
 
         # Phase 2 — combat + items
         self._signals.combat_started.connect(self._on_combat_started)
@@ -84,7 +90,15 @@ class MainWindow(QMainWindow):
         self._signals.inventory_updated.connect(self._game_view.update_inventory)
         self._signals.room_items_changed.connect(self._game_view.update_room_items)
 
+        # Phase 3.2 — dungeon map panel
+        self._signals.map_state_changed.connect(self._map_panel.update_map)
+
     # ── Key events (hold-to-talk) ─────────────────────────────────────────────
+
+    def closeEvent(self, event) -> None:
+        """Reset game state on close so the next launch starts fresh."""
+        self._controller.reset_game_state()
+        super().closeEvent(event)
 
     def keyPressEvent(self, event) -> None:
         """
@@ -134,35 +148,37 @@ class MainWindow(QMainWindow):
             "You escaped the dungeon and lived to tell the tale.\n\n"
             "(Close this dialog to play again.)",
         )
-        # Reset game state for a new run
-        self._controller._state.reset()
-        self._controller._previous_room_name = None
-        self._controller._in_combat = False
-        self._controller._current_boss = None
-        self._controller._emit_state()
-        self._game_view.hide_combat_status()
-        self._game_view.update_inventory([])
-        self._game_view.update_room_items([])
-        self._game_view.set_status("Ready  —  Hold [SPACE] to speak")
+        self._controller.restart_after_death()
+
+    def _on_game_over(self, narration_text: str, wav_path: str) -> None:
+        """Player died. Show a dialog, then restart."""
+        self._game_view.set_status("YOU DIED")
+        QMessageBox.critical(
+            self,
+            "Game Over",
+            f"{narration_text}\n\n(Close this dialog to play again.)",
+        )
+        self._controller.restart_after_death()
 
     def _on_combat_started(self, payload: dict) -> None:
-        """Show combat HP when entering a boss room."""
+        """Show combat HP when entering a boss or monster room."""
         self._game_view.show_combat_status(
             player_hp=payload["player_hp"],
             player_max=payload["player_max_hp"],
-            boss_hp=payload["boss_hp"],
-            boss_max=payload["boss_max_hp"],
+            boss_hp=payload["enemy_hp"],
+            boss_max=payload["enemy_max_hp"],
             boss_name=payload["name"],
         )
         self._game_view.set_status("IN COMBAT  —  Hold [SPACE] to attack")
 
     def _on_combat_updated(self, payload: dict) -> None:
         """Refresh combat HP display after each round."""
-        boss_name = self._controller._current_boss["name"] if self._controller._current_boss else "Boss"
+        enemy = self._controller._current_enemy
+        enemy_name = enemy["name"] if enemy else "Enemy"
         self._game_view.show_combat_status(
             player_hp=payload["player_hp"],
             player_max=payload["player_max_hp"],
-            boss_hp=payload["boss_hp"],
-            boss_max=payload["boss_max_hp"],
-            boss_name=boss_name,
+            boss_hp=payload["enemy_hp"],
+            boss_max=payload["enemy_max_hp"],
+            boss_name=enemy_name,
         )

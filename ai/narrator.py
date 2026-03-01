@@ -11,6 +11,13 @@ from ai.prompts import (
     build_boss_defeat_user_prompt,
     build_exit_blocked_user_prompt,
     build_pickup_narration_user_prompt,
+    build_potion_use_user_prompt,
+    build_death_narration_user_prompt,
+    build_monster_encounter_user_prompt,
+    build_monster_defeat_user_prompt,
+    build_locked_room_user_prompt,
+    build_unlock_room_user_prompt,
+    build_swap_narration_user_prompt,
 )
 
 
@@ -135,6 +142,80 @@ class Narrator:
         system   = build_narration_system_prompt()
         user     = build_pickup_narration_user_prompt(item_name, room_name)
         logging.debug(f"Narrator: generating pickup narration for '{item_name}'")
+        text     = self._mistral.complete(system, user)
+        wav_path = self._tts.speak(text)
+        return text, wav_path
+
+    # ── Phase 3 narration ──────────────────────────────────────────────────────
+
+    def narrate_death(self, room_name: str, killer_name: str) -> tuple[str, str]:
+        """Generate player death narration."""
+        system   = build_narration_system_prompt()
+        user     = build_death_narration_user_prompt(room_name, killer_name)
+        logging.debug(f"Narrator: generating death narration — killed by '{killer_name}'")
+        text     = self._mistral.complete(system, user)
+        wav_path = self._tts.speak(text)
+        return text, wav_path
+
+    def narrate_monster_encounter(
+        self,
+        monster_name: str,
+        room: dict,
+        previous_room_name: str | None,
+    ) -> tuple[str, str]:
+        """Generate narration for encountering a roaming monster."""
+        system   = build_narration_system_prompt()
+        user     = build_monster_encounter_user_prompt(
+            monster_name, room["name"], previous_room_name
+        )
+        logging.debug(f"Narrator: generating monster encounter narration for '{monster_name}'")
+        text     = self._mistral.complete(system, user)
+        wav_path = self._tts.speak(text)
+        return text, wav_path
+
+    def narrate_monster_defeat(self, monster_name: str) -> tuple[str, str]:
+        """Generate narration for defeating a roaming monster."""
+        system   = build_narration_system_prompt()
+        user     = build_monster_defeat_user_prompt(monster_name)
+        logging.debug(f"Narrator: generating monster defeat narration for '{monster_name}'")
+        text     = self._mistral.complete(system, user)
+        wav_path = self._tts.speak(text)
+        return text, wav_path
+
+    def narrate_locked_room(self, room_name: str, key_name: str | None) -> tuple[str, str]:
+        """Generate narration when player hits a locked door."""
+        system   = build_narration_system_prompt()
+        user     = build_locked_room_user_prompt(room_name, key_name)
+        logging.debug(f"Narrator: generating locked room narration for '{room_name}'")
+        text     = self._mistral.complete(system, user)
+        wav_path = self._tts.speak(text)
+        return text, wav_path
+
+    def narrate_unlock(self, room_name: str) -> tuple[str, str]:
+        """Generate narration when player unlocks a door with a key."""
+        system   = build_narration_system_prompt()
+        user     = build_unlock_room_user_prompt(room_name)
+        logging.debug(f"Narrator: generating unlock narration for '{room_name}'")
+        text     = self._mistral.complete(system, user)
+        wav_path = self._tts.speak(text)
+        return text, wav_path
+
+    def narrate_potion_use(
+        self, item_name: str, hp_gained: int, new_hp: int, max_hp: int, room_name: str
+    ) -> tuple[str, str]:
+        """Generate narration when player drinks a healing potion."""
+        system   = build_narration_system_prompt()
+        user     = build_potion_use_user_prompt(item_name, hp_gained, new_hp, max_hp, room_name)
+        logging.debug(f"Narrator: generating potion use narration (+{hp_gained} HP)")
+        text     = self._mistral.complete(system, user)
+        wav_path = self._tts.speak(text)
+        return text, wav_path
+
+    def narrate_swap(self, new_item: str, old_item: str, room_name: str) -> tuple[str, str]:
+        """Generate narration when player swaps one equipment piece for another."""
+        system   = build_narration_system_prompt()
+        user     = build_swap_narration_user_prompt(new_item, old_item, room_name)
+        logging.debug(f"Narrator: generating swap narration '{old_item}' → '{new_item}'")
         text     = self._mistral.complete(system, user)
         wav_path = self._tts.speak(text)
         return text, wav_path

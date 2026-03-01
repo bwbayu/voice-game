@@ -130,6 +130,17 @@ def build_pickup_narration_user_prompt(item_name: str, room_name: str) -> str:
     )
 
 
+def build_potion_use_user_prompt(
+    item_name: str, hp_gained: int, new_hp: int, max_hp: int, room_name: str
+) -> str:
+    return (
+        f"The player drank the {item_name} in {room_name} and recovered {hp_gained} HP "
+        f"(now {new_hp}/{max_hp}). "
+        "Write 1 sentence describing them drinking it and feeling restored. "
+        "Brief and atmospheric. Second person. No markdown."
+    )
+
+
 def build_boss_taunt_user_prompt(
     boss_name: str,
     skill_name: str,
@@ -139,6 +150,66 @@ def build_boss_taunt_user_prompt(
         "Write ONLY the skill name as a short battle cry — 2 to 4 words maximum, "
         "spoken by the boss (e.g. 'Stone Crush!' or 'Taste the shadows!'). "
         "No sentences, no explanation, no markdown. Just the short cry itself."
+    )
+
+
+# ── Phase 3 narration ─────────────────────────────────────────────────────────
+
+def build_death_narration_user_prompt(room_name: str, killer_name: str) -> str:
+    return (
+        f"The player was killed by {killer_name} in {room_name}. "
+        "Write 2 atmospheric sentences describing their death. "
+        "The tone is grim and final — the dungeon claims another soul. "
+        "Second person. No markdown. No game mechanics."
+    )
+
+
+def build_monster_encounter_user_prompt(
+    monster_name: str,
+    room_name: str,
+    previous_room_name: str | None,
+) -> str:
+    origin = f"came from {previous_room_name}" if previous_room_name else "entered"
+    return (
+        f"The player {origin} and encountered {monster_name} in {room_name}. "
+        "Write 2 sentences of tense atmosphere. "
+        "Describe the monster's sudden presence — threatening and immediate. "
+        "Do NOT mention game mechanics or how to fight. Second person."
+    )
+
+
+def build_monster_defeat_user_prompt(monster_name: str) -> str:
+    return (
+        f"{monster_name} has been defeated. "
+        "Write 1–2 sentences describing it falling. "
+        "The tone is relieved but uneasy — more dangers lurk ahead. "
+        "Second person. No markdown."
+    )
+
+
+def build_locked_room_user_prompt(room_name: str, key_name: str | None) -> str:
+    key_hint = f"A {key_name} might open it." if key_name else "You need a key."
+    return (
+        f"The player tried to enter {room_name} but the door is locked. "
+        f"{key_hint} "
+        "Write 1 sentence describing the locked entrance — heavy, foreboding. "
+        "Second person. No markdown."
+    )
+
+
+def build_unlock_room_user_prompt(room_name: str) -> str:
+    return (
+        f"The player used a key to unlock {room_name}. "
+        "Write 1 sentence: the lock clicks open, the door creaks. "
+        "Second person. No markdown."
+    )
+
+
+def build_swap_narration_user_prompt(new_item: str, old_item: str, room_name: str) -> str:
+    return (
+        f"The player dropped the {old_item} and picked up the {new_item} in {room_name}. "
+        "Write 1 sentence describing them swapping the items. "
+        "Brief and atmospheric. Second person. No markdown."
     )
 
 

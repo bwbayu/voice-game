@@ -87,11 +87,27 @@ class GameView(QWidget):
 
         layout.addSpacing(4)
 
-        # ── Inventory ────────────────────────────────────────
-        self.lbl_inventory = QLabel("Inventory:  [empty]")
-        self.lbl_inventory.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_inventory.setWordWrap(True)
-        layout.addWidget(self.lbl_inventory)
+        # ── Equipped weapon ──────────────────────────────────
+        self.lbl_weapon = QLabel("Weapon: [none]")
+        self.lbl_weapon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_weapon.setWordWrap(True)
+        layout.addWidget(self.lbl_weapon)
+
+        layout.addSpacing(2)
+
+        # ── Equipped armor ───────────────────────────────────
+        self.lbl_armor = QLabel("Armor: [none]")
+        self.lbl_armor.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_armor.setWordWrap(True)
+        layout.addWidget(self.lbl_armor)
+
+        layout.addSpacing(2)
+
+        # ── Bag (keys) ───────────────────────────────────────
+        self.lbl_bag = QLabel("")
+        self.lbl_bag.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_bag.setWordWrap(True)
+        layout.addWidget(self.lbl_bag)
 
         layout.addStretch()
 
@@ -146,9 +162,8 @@ class GameView(QWidget):
         self.lbl_room_items.setStyleSheet(
             f"font-size: 12px; color: #707088; {_LABEL_BG}"
         )
-        self.lbl_inventory.setStyleSheet(
-            f"font-size: 12px; color: #707088; {_LABEL_BG}"
-        )
+        for lbl in (self.lbl_weapon, self.lbl_armor, self.lbl_bag):
+            lbl.setStyleSheet(f"font-size: 12px; color: #707088; {_LABEL_BG}")
         self.lbl_transcript.setStyleSheet(
             f"font-size: 13px; font-style: italic; color: #70c090; {_LABEL_BG}"
         )
@@ -219,20 +234,40 @@ class GameView(QWidget):
         self.lbl_narration.setText(text)
 
     def update_room_items(self, items: list[dict]) -> None:
-        """Update the room items label. items is a list of item dicts."""
+        """Update the room items label. Shows ATK/DEF stat inline."""
         if items:
-            names = "  |  ".join(i["name"] for i in items)
-            self.lbl_room_items.setText(f"Items here:  {names}")
+            parts = []
+            for i in items:
+                if i.get("type") == "weapon":
+                    parts.append(f"{i['name']} (ATK {i.get('damage', 0)})")
+                elif i.get("type") == "armor":
+                    parts.append(f"{i['name']} (DEF {i.get('defense', 0)})")
+                else:
+                    parts.append(i["name"])
+            self.lbl_room_items.setText("Items here:  " + "  |  ".join(parts))
         else:
             self.lbl_room_items.setText("")
 
-    def update_inventory(self, items: list[dict]) -> None:
-        """Update the inventory label. items is a list of item dicts."""
-        if items:
-            names = "  |  ".join(i["name"] for i in items)
-            self.lbl_inventory.setText(f"Inventory:  {names}")
-        else:
-            self.lbl_inventory.setText("Inventory:  [empty]")
+    def update_inventory(self, payload: dict) -> None:
+        """Update equipment display. payload = {"equipped": {slot: item_dict|None}, "bag": [...]}"""
+        equipped = payload.get("equipped", {})
+        bag      = payload.get("bag", [])
+
+        w = equipped.get("weapon")
+        self.lbl_weapon.setText(
+            f"Weapon: {w['name']}  (ATK {w.get('damage', 0)})" if w else "Weapon: [none]"
+        )
+
+        _ARMOR_SLOTS = ("helmet", "suit", "legs", "shoes", "cloak", "shield")
+        parts = [
+            f"{slot.title()}: {equipped[slot]['name']} (DEF {equipped[slot].get('defense', 0)})"
+            for slot in _ARMOR_SLOTS if equipped.get(slot)
+        ]
+        self.lbl_armor.setText("Armor: " + "  |  ".join(parts) if parts else "Armor: [none]")
+
+        self.lbl_bag.setText(
+            "Bag: " + "  |  ".join(i["name"] for i in bag) if bag else ""
+        )
 
     def show_combat_status(
         self,

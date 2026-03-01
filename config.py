@@ -13,6 +13,7 @@ MAP_FILE        = MAPS_DIR / "dungeon_map.json"
 GAME_STATE_FILE = STATE_DIR / "game_state.json"
 ITEMS_FILE       = DATA_DIR / "items.json"
 BOSSES_FILE      = DATA_DIR / "bosses.json"
+MONSTERS_FILE    = DATA_DIR / "monsters.json"
 BOSSES_AUDIO_DIR = ROOT_DIR / "audio" / "bosses"
 
 # ── Audio recording (Mistral realtime requires pcm_s16le @ 16kHz) ──
