@@ -6,7 +6,7 @@
 
 An AI-powered voice-driven RPG where Mistral acts as your Game Master and your voice shapes the adventure.
 
-Built for the [Mistral Worldwide Hackathon](https://mistral.ai) (Feb 28 – Mar 1, 2026).
+Built for the [Mistral Worldwide Hackathon](https://luma.com/mistralhack-online) (Feb 28 – Mar 1, 2026).
 
 ---
 
