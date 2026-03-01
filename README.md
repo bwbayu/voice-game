@@ -1,5 +1,9 @@
 # Voice of the Dungeon
 
+<p align="center">
+  <img src="assets/icons/logo.jpg" alt="Voice of the Dungeon" width="400"/>
+</p>
+
 An AI-powered voice-driven RPG where Mistral acts as your Game Master and your voice shapes the adventure.
 
 Built for the [Mistral Worldwide Hackathon](https://mistral.ai) (Feb 28 – Mar 1, 2026).
@@ -30,6 +34,14 @@ The core loop:
 - **Roaming monsters** — enemies move between rooms autonomously and can ambush you mid-exploration
 - **Atmospheric audio** — background music per room type (home, normal, boss, exit) with combat sound stingers
 - **Persistent state** — game saves to JSON and resumes where you left off
+
+---
+
+## Screenshot
+
+<p align="center">
+  <img src="assets/icons/ss_game.jpg" alt="Game Screenshot" width="800"/>
+</p>
 
 ---
 
@@ -184,3 +196,12 @@ mistral-hackathon/
 | *"pick up the sword"* | Pick up an item |
 | *"attack with the axe"* | Attack in combat |
 | *"drink the potion"* | Consume a health potion |
+
+---
+
+## Credits
+
+| Asset | Tool |
+|---|---|
+| Game icons & background images | [Google Gemini](https://gemini.google.com) (image generation) |
+| Background music | [Suno](https://suno.com) (AI music generation) |
