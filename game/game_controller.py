@@ -318,7 +318,11 @@ class GameController(QObject):
         """Build and emit the state_updated payload for the UI."""
         room_id = self._state.current_room_id
         room    = self._dungeon.get_room(room_id)
-        exits   = self._dungeon.get_exits(room_id)
+        raw_exits = self._dungeon.get_exits(room_id)   # {direction: room_id}
+        exits = {
+            direction: self._dungeon.get_room(target_id)["name"]
+            for direction, target_id in raw_exits.items()
+        }   # {direction: room_name}
         payload = {
             "room": room,
             "exits": exits,

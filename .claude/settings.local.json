@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:game-icons.net)",
+      "WebFetch(domain:openmoji.org)",
+      "Bash(curl:*)",
+      "Bash(python3:*)"
+    ]
+  }
+}

@@ -58,7 +58,8 @@ class MainWindow(QMainWindow):
     # ── Signal wiring ─────────────────────────────────────────────────────────
 
     def _connect_signals(self) -> None:
-        self._signals.state_updated.connect(self._game_view.update_state)
+        # state_updated feeds both the game view and the player HP in the status panel
+        self._signals.state_updated.connect(self._on_state_updated)
 
         self._signals.narration_started.connect(
             lambda: self._game_view.set_status("Narrating...")
@@ -69,9 +70,6 @@ class MainWindow(QMainWindow):
         )
         self._signals.listening_started.connect(
             self._game_view.show_listening
-        )
-        self._signals.transcript_delta.connect(
-            self._game_view.append_transcript_delta
         )
         self._signals.processing_started.connect(
             lambda: self._game_view.set_status("Processing...")
@@ -86,8 +84,8 @@ class MainWindow(QMainWindow):
         # Phase 2 — combat + items
         self._signals.combat_started.connect(self._on_combat_started)
         self._signals.combat_updated.connect(self._on_combat_updated)
-        self._signals.combat_ended.connect(self._game_view.hide_combat_status)
-        self._signals.inventory_updated.connect(self._game_view.update_inventory)
+        self._signals.combat_ended.connect(self._game_view.hide_monster_row)
+        self._signals.inventory_updated.connect(self._map_panel.update_player_status)
         self._signals.room_items_changed.connect(self._game_view.update_room_items)
 
         # Phase 3.2 — dungeon map panel
@@ -160,25 +158,27 @@ class MainWindow(QMainWindow):
         )
         self._controller.restart_after_death()
 
-    def _on_combat_started(self, payload: dict) -> None:
-        """Show combat HP when entering a boss or monster room."""
-        self._game_view.show_combat_status(
-            player_hp=payload["player_hp"],
-            player_max=payload["player_max_hp"],
-            boss_hp=payload["enemy_hp"],
-            boss_max=payload["enemy_max_hp"],
-            boss_name=payload["name"],
+    def _on_state_updated(self, payload: dict) -> None:
+        """Forward state to game view and sync player HP in the status panel."""
+        self._game_view.update_state(payload)
+        player = payload.get("player", {})
+        self._map_panel.update_player_hp(
+            player.get("hp", 0), player.get("max_hp", 0)
         )
+
+    def _on_combat_started(self, payload: dict) -> None:
+        """Show monster row in game view and update HP in player status panel."""
+        self._game_view.show_monster_row(
+            payload["name"], payload["enemy_hp"], payload["enemy_max_hp"]
+        )
+        self._map_panel.update_player_hp(payload["player_hp"], payload["player_max_hp"])
         self._game_view.set_status("IN COMBAT  —  Hold [SPACE] to attack")
 
     def _on_combat_updated(self, payload: dict) -> None:
-        """Refresh combat HP display after each round."""
-        enemy = self._controller._current_enemy
+        """Refresh monster row and player HP after each combat round."""
+        enemy      = self._controller._current_enemy
         enemy_name = enemy["name"] if enemy else "Enemy"
-        self._game_view.show_combat_status(
-            player_hp=payload["player_hp"],
-            player_max=payload["player_max_hp"],
-            boss_hp=payload["enemy_hp"],
-            boss_max=payload["enemy_max_hp"],
-            boss_name=enemy_name,
+        self._game_view.show_monster_row(
+            enemy_name, payload["enemy_hp"], payload["enemy_max_hp"]
         )
+        self._map_panel.update_player_hp(payload["player_hp"], payload["player_max_hp"])
