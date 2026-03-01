@@ -30,7 +30,10 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from config import ASSETS_DIR, BG_COLOR
+from config import (
+    ASSETS_DIR, BG_COLOR, TEXT_COLOR, ACCENT_COLOR, DIM_COLOR,
+    CRIMSON_RED, BOSS_ALIVE_COLOR, MONSTER_COLOR, ITEM_COLOR, FONT_BODY
+)
 
 _ICONS_DIR  = ASSETS_DIR / "icons"
 _ICON_SIZE  = 28   # px for Player Status icons
@@ -90,28 +93,29 @@ _ROOM_NAMES: dict[str, str] = {
     "t":    "Dark Core",
 }
 
-_TYPE_FILL: dict[str, str] = {
-    "home":   "#16213e",
-    "normal": "#2a2a3a",
-    "boss":   "#3a1010",
-    "exit":   "#0d2b1a",
-}
+
 
 # Colours
-_COL_EDGE         = "#3a3a4a"
-_COL_BORDER_NORM  = "#444455"
-_COL_BORDER_PLAY  = "#ffff00"   # player location — yellow, 3 px
-_COL_BORDER_LOCK  = "#8855aa"   # locked room — purple, 2 px
-_COL_BORDER_BOSS  = "#cc2222"   # boss alive — red, 2 px
-_COL_FILL_DEAD    = "#1e1e1e"   # grayed-out cleared boss
-_COL_NAME         = "#c8c8d8"
-_COL_NAME_DIM     = "#606070"
-_COL_BOSS_ALIVE   = "#dd4444"
-_COL_MONSTER      = "#cc8833"
-_COL_ITEM         = "#7799aa"
-_COL_TITLE        = "#c0a060"
-_COL_STATUS_BG    = "#16161e"   # darker bg for player status section
+_COL_EDGE         = "#4A4A5A"  # Bisa tetap hardcode untuk map-specific
+_COL_BORDER_NORM  = "#555566"
+_COL_BORDER_PLAY  = ACCENT_COLOR
+_COL_BORDER_LOCK  = "#8855AA"
+_COL_BORDER_BOSS  = CRIMSON_RED
+_COL_FILL_DEAD    = BG_COLOR  
+_COL_NAME         = TEXT_COLOR
+_COL_NAME_DIM     = DIM_COLOR
+_COL_BOSS_ALIVE   = BOSS_ALIVE_COLOR
+_COL_MONSTER      = MONSTER_COLOR
+_COL_ITEM         = ITEM_COLOR
+_COL_TITLE        = ACCENT_COLOR
+_COL_STATUS_BG    = f"rgba(11, 12, 16, 0.95)" # Transparan base background
 
+_TYPE_FILL = {
+    "home":   BG_COLOR,
+    "normal": BG_COLOR,
+    "boss":   "#1A0D0D",  # Sedikit tint merah untuk boss room
+    "exit":   "#0A1A10",
+}
 
 def _load_icon(name: str) -> QPixmap | None:
     px = QPixmap(str(_ICONS_DIR / name))
@@ -374,51 +378,30 @@ class MapPanel(QWidget):
 
         parent_layout.addWidget(status_frame, stretch=4)
 
-    def _build_html(
-        self,
-        room_id: str,
-        is_locked: bool,
-        boss_name: str | None,
-        boss_cleared: bool,
-        items_list: list[str],
-        monsters: list[str],
-    ) -> str:
-        lock_str   = " \U0001f512" if is_locked else ""
+    def _build_html(self, room_id: str, is_locked: bool, boss_name: str | None, boss_cleared: bool, items_list: list[str], monsters: list[str]) -> str:
+        lock_str   = " 🔒" if is_locked else ""
         name_color = _COL_NAME_DIM if boss_cleared else _COL_NAME
 
         lines = [
-            f'<span style="font-size:10px; font-weight:bold; color:{name_color};">'
+            f'<div style="text-align: center; font-family: \'{FONT_BODY}\', serif;">'
+            f'<span style="font-size:11px; font-weight:bold; color:{name_color};">'
             f"{_ROOM_NAMES[room_id]}{lock_str}</span>"
         ]
 
         if boss_name:
             if boss_cleared:
-                lines.append(
-                    f'<span style="font-size:8px; color:{_COL_NAME_DIM};">'
-                    f"{boss_name} [dead]</span>"
-                )
+                lines.append(f'<br><span style="font-size:9px; color:{_COL_NAME_DIM};">{boss_name} [dead]</span>')
             else:
-                lines.append(
-                    f'<span style="font-size:8px; color:{_COL_BOSS_ALIVE};">'
-                    f"{boss_name}</span>"
-                )
+                lines.append(f'<br><span style="font-size:10px; font-weight:bold; color:{_COL_BOSS_ALIVE};">{boss_name}</span>')
 
         for m in monsters:
-            lines.append(
-                f'<span style="font-size:8px; color:{_COL_MONSTER};">{m}</span>'
-            )
+            lines.append(f'<br><span style="font-size:9px; color:{_COL_MONSTER};">{m}</span>')
 
         for itm in items_list[:2]:
-            lines.append(
-                f'<span style="font-size:8px; color:{_COL_ITEM};">{itm}</span>'
-            )
-        if len(items_list) > 2:
-            lines.append(
-                f'<span style="font-size:7px; color:{_COL_NAME_DIM};">'
-                f"+{len(items_list) - 2} more</span>"
-            )
-
-        return "<br/>".join(lines)
+            lines.append(f'<br><span style="font-size:9px; color:{_COL_ITEM};">{itm}</span>')
+        
+        lines.append('</div>')
+        return "".join(lines)
 
     # ── Player Status public slots ─────────────────────────────────────────────
 

@@ -1,244 +1,243 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QGraphicsDropShadowEffect
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap, QPainter
+from PyQt6.QtGui import QPixmap, QPainter, QLinearGradient, QColor, QBrush
 
-from config import BG_COLOR, TEXT_COLOR, ACCENT_COLOR, STATUS_COLOR, ASSETS_DIR
+from config import (
+    BG_COLOR, TEXT_COLOR, ACCENT_COLOR, STATUS_COLOR, 
+    CRIMSON_RED, DIM_COLOR, ASSETS_DIR
+)
 
 _ICONS_DIR = ASSETS_DIR / "icons"
-_ICON_SIZE  = 36   # px — icon labels are fixed at this square size
+_ICON_SIZE  = 28
 
+# Font Stacks (Target Font -> Fallback)
+_FONT_TITLE = "'Cinzel', 'Georgia', serif"
+_FONT_BODY  = "'Lora', 'Georgia', 'Times New Roman', serif"
 
 def _load_icon(name: str) -> QPixmap | None:
     px = QPixmap(str(_ICONS_DIR / name))
-    if px.isNull():
-        return None
-    return px.scaled(
-        _ICON_SIZE, _ICON_SIZE,
-        Qt.AspectRatioMode.KeepAspectRatio,
-        Qt.TransformationMode.SmoothTransformation,
-    )
+    if px.isNull(): return None
+    return px.scaled(_ICON_SIZE, _ICON_SIZE, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
 
-
-class GameView(QWidget):
-    """
-    The main game display. Entirely read-only — no user interaction here.
-    Updated exclusively via its public slot methods.
-    Key events are handled by MainWindow, not this widget.
-    """
-
+class RoomImageWidget(QWidget):
+    """Custom widget to display the top-half image with center cropping and fade-out gradient."""
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._bg_pixmap: QPixmap | None = None
+        self.pixmap: QPixmap | None = None
+        self.setFixedHeight(350) # Tinggi gambar di-fix 350px
+
+    def set_image(self, path: str) -> None:
+        self.pixmap = QPixmap(path)
+        self.update()
+
+    def paintEvent(self, event) -> None:
+        if self.pixmap and not self.pixmap.isNull():
+            painter = QPainter(self)
+            # Resize dengan KeepAspectRatioByExpanding agar menutupi seluruh area tanpa gepeng
+            scaled = self.pixmap.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
+            crop_x = (scaled.width() - self.width()) // 2
+            crop_y = (scaled.height() - self.height()) // 2
+            painter.drawPixmap(0, 0, scaled, crop_x, crop_y, self.width(), self.height())
+            
+            # Gradasi di bagian bawah gambar agar menyatu mulus ke UI hitam
+            grad = QLinearGradient(0, self.height() - 60, 0, self.height())
+            grad.setColorAt(0, QColor(11, 12, 16, 0))
+            grad.setColorAt(1, QColor(11, 12, 16, 255))
+            painter.fillRect(self.rect(), QBrush(grad))
+
+class GameView(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self._build_ui()
         self._apply_styles()
 
-    # ── Background painting ────────────────────────────────────────────────────
-
-    def paintEvent(self, event) -> None:
-        if self._bg_pixmap:
-            painter = QPainter(self)
-            painter.drawPixmap(self.rect(), self._bg_pixmap)
-        super().paintEvent(event)
-
-    def update_bg_image(self, path: str) -> None:
-        """Load a room background image. Silently skips if the file is missing."""
-        px = QPixmap(path)
-        self._bg_pixmap = px if not px.isNull() else None
-        self.update()
-
-    # ── Build ─────────────────────────────────────────────────────────────────
-
     def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 30, 40, 30)
-        layout.setSpacing(0)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
-        # ── Title ──────────────────────────────────────────
-        self.lbl_title = QLabel("BLIND DUNGEON")
+        # ── 1. Top Half: Image Container ──
+        self._image_widget = RoomImageWidget()
+        main_layout.addWidget(self._image_widget)
+
+        # ── 2. Bottom Half: UI Container ──
+        self._ui_container = QWidget()
+        ui_layout = QVBoxLayout(self._ui_container)
+        ui_layout.setContentsMargins(30, 10, 30, 30)
+        
+        # Title & Room
+        self.lbl_title = QLabel("B L I N D   D U N G E O N")
         self.lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.lbl_title)
+        ui_layout.addWidget(self.lbl_title)
 
-        layout.addSpacing(8)
-
-        # ── Room name ───────────────────────────────────────
         self.lbl_room = QLabel("—")
         self.lbl_room.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_room.setWordWrap(True)
-        layout.addWidget(self.lbl_room)
+        # Drop Shadow elegan untuk nama ruangan
+        shadow = QGraphicsDropShadowEffect(self)
+        shadow.setBlurRadius(8)
+        shadow.setColor(QColor(0, 0, 0, 150))
+        shadow.setOffset(0, 2)
+        self.lbl_room.setGraphicsEffect(shadow)
+        ui_layout.addWidget(self.lbl_room)
 
-        layout.addSpacing(16)
+        ui_layout.addSpacing(20)
 
-        # ── Narrative box ────────────────────────────────────
-        self._narrative_frame = QFrame()
-        self._narrative_frame.setFrameShape(QFrame.Shape.StyledPanel)
-        frame_layout = QVBoxLayout(self._narrative_frame)
-        frame_layout.setContentsMargins(16, 16, 16, 16)
+        # Narration
         self.lbl_narration = QLabel("")
         self.lbl_narration.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_narration.setWordWrap(True)
-        frame_layout.addWidget(self.lbl_narration)
-        layout.addWidget(self._narrative_frame)
+        self.lbl_narration.setMinimumHeight(100)
+        ui_layout.addWidget(self.lbl_narration)
+        
+        ui_layout.addStretch()
 
-        layout.addSpacing(16)
-
-        # ── Room items row (chest icon + item names) ─────────
+        # Item & Monster Rows
         self._items_row = QWidget()
         items_h = QHBoxLayout(self._items_row)
         items_h.setContentsMargins(0, 0, 0, 0)
-        items_h.setSpacing(10)
-
-        self._icon_chest = QLabel()
-        px = _load_icon("chest_pixel.png")
-        if px:
-            self._icon_chest.setPixmap(px)
-        self._icon_chest.setFixedSize(_ICON_SIZE, _ICON_SIZE)
-        items_h.addStretch()
-        items_h.addWidget(self._icon_chest)
-
         self.lbl_room_items = QLabel("")
-        self.lbl_room_items.setWordWrap(True)
         self.lbl_room_items.setAlignment(Qt.AlignmentFlag.AlignCenter)
         items_h.addWidget(self.lbl_room_items)
-        items_h.addStretch()
-
         self._items_row.setVisible(False)
-        layout.addWidget(self._items_row)
+        ui_layout.addWidget(self._items_row)
 
-        layout.addSpacing(8)
-
-        # ── Monster row (combat only — monster icon + name + HP) ─
         self._monster_row = QWidget()
         monster_h = QHBoxLayout(self._monster_row)
         monster_h.setContentsMargins(0, 0, 0, 0)
-        monster_h.setSpacing(10)
-
-        self._icon_monster = QLabel()
-        px = _load_icon("boss_icon.png")
-        if px:
-            self._icon_monster.setPixmap(px)
-        self._icon_monster.setFixedSize(_ICON_SIZE, _ICON_SIZE)
-        monster_h.addStretch()
-        monster_h.addWidget(self._icon_monster)
-
         self.lbl_monster = QLabel("")
-        self.lbl_monster.setWordWrap(True)
         self.lbl_monster.setAlignment(Qt.AlignmentFlag.AlignCenter)
         monster_h.addWidget(self.lbl_monster)
-        monster_h.addStretch()
-
         self._monster_row.setVisible(False)
-        layout.addWidget(self._monster_row)
+        ui_layout.addWidget(self._monster_row)
 
-        layout.addStretch()
+        ui_layout.addSpacing(15)
 
-        # ── Exits pill ──────────────────────────────────────
+        # Exits & Mic Status
         self.lbl_exits = QLabel("Exits: —")
         self.lbl_exits.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_exits.setWordWrap(True)
-        layout.addWidget(self.lbl_exits)
+        ui_layout.addWidget(self.lbl_exits)
 
-        layout.addSpacing(8)
-
-        # ── Status ──────────────────────────────────────────
         self.lbl_status = QLabel("Initializing...")
         self.lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.lbl_status)
+        ui_layout.addWidget(self.lbl_status)
 
-        layout.addSpacing(8)
+        ui_layout.addSpacing(15)
+
+        # ── 3. Player Dashboard (Bottom Section) ──
+        self._build_dashboard(ui_layout)
+
+        main_layout.addWidget(self._ui_container)
+
+    def _build_dashboard(self, parent_layout: QVBoxLayout) -> None:
+        self.dashboard_frame = QFrame()
+        dash_layout = QVBoxLayout(self.dashboard_frame)
+        dash_layout.setContentsMargins(15, 15, 15, 10)
+        dash_layout.setSpacing(6)
+
+        # HP Row
+        hp_h = QHBoxLayout()
+        icon_heart = QLabel()
+        px_heart = _load_icon("heart.png")
+        if px_heart: icon_heart.setPixmap(px_heart)
+        self.lbl_ps_hp = QLabel("100/100 HP")
+        hp_h.addWidget(icon_heart)
+        hp_h.addWidget(self.lbl_ps_hp)
+        hp_h.addStretch()
+        dash_layout.addLayout(hp_h)
+
+        # Equipment Text
+        self.lbl_ps_equip = QLabel("Weapon: [none]  |  Armor: [none]")
+        self.lbl_ps_bag = QLabel("Bag: Empty")
+        dash_layout.addWidget(self.lbl_ps_equip)
+        dash_layout.addWidget(self.lbl_ps_bag)
+
+        parent_layout.addWidget(self.dashboard_frame)
 
     def _apply_styles(self) -> None:
-        self.setStyleSheet(f"background-color: {BG_COLOR}; color: {TEXT_COLOR};")
-
+        self._ui_container.setStyleSheet(f"background-color: {BG_COLOR};")
+        
         self.lbl_title.setStyleSheet(
-            f"font-size: 28px; font-weight: bold; color: {ACCENT_COLOR}; "
-            f"letter-spacing: 6px;"
+            f"font-size: 16px; font-weight: bold; color: {ACCENT_COLOR}; "
+            f"letter-spacing: 6px; font-family: {_FONT_TITLE};"
         )
         self.lbl_room.setStyleSheet(
-            f"font-size: 20px; font-weight: bold; color: {ACCENT_COLOR};"
-        )
-        self._narrative_frame.setStyleSheet(
-            "QFrame { background-color: rgba(30, 30, 50, 200); "
-            "border-radius: 8px; border: 1px solid #3a3a5a; }"
+            f"font-size: 26px; font-weight: normal; color: #FFFFFF;"
+            f"font-family: {_FONT_TITLE};"
         )
         self.lbl_narration.setStyleSheet(
-            "font-size: 13px; font-style: italic; color: #a0a0b8;"
+            f"font-size: 18px; font-style: italic; color: {TEXT_COLOR}; "
+            f"line-height: 140%; font-family: {_FONT_BODY};"
         )
-        self.lbl_room_items.setStyleSheet(
-            "font-size: 12px; color: #c0c0d8;"
-        )
-        self.lbl_monster.setStyleSheet(
-            f"font-size: 13px; font-weight: bold; color: {ACCENT_COLOR};"
-        )
+        self.lbl_room_items.setStyleSheet(f"font-size: 13px; color: {ACCENT_COLOR}; font-family: {_FONT_BODY};")
+        self.lbl_monster.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {CRIMSON_RED}; font-family: {_FONT_BODY};")
+        
         self.lbl_exits.setStyleSheet(
-            "font-size: 13px; color: #8888aa; letter-spacing: 1px; "
-            "background-color: rgba(20, 20, 40, 200); "
-            "border-radius: 12px; border: 1px solid #444466; "
-            "padding: 6px 16px;"
+            f"font-size: 12px; color: {DIM_COLOR}; letter-spacing: 2px; "
+            f"font-family: {_FONT_TITLE}; border-top: 1px solid rgba(212, 175, 55, 0.2); padding-top: 10px;"
         )
-        self.lbl_status.setStyleSheet(
-            f"font-size: 14px; font-style: italic; color: {STATUS_COLOR};"
+        self.lbl_status.setStyleSheet(f"font-size: 13px; color: {STATUS_COLOR}; font-style: italic; font-family: {_FONT_BODY};")
+
+        # Dashboard Styling
+        self.dashboard_frame.setStyleSheet(
+            f"QFrame {{ border-top: 1px solid rgba(255, 255, 255, 0.1); background-color: rgba(20, 22, 30, 0.5); border-radius: 8px; }}"
         )
+        self.lbl_ps_hp.setStyleSheet(f"font-size: 15px; font-weight: bold; color: {CRIMSON_RED}; font-family: {_FONT_TITLE}; border: none; background: transparent;")
+        self.lbl_ps_equip.setStyleSheet(f"font-size: 12px; color: {DIM_COLOR}; border: none; background: transparent; font-family: {_FONT_BODY};")
+        self.lbl_ps_bag.setStyleSheet(f"font-size: 12px; color: {DIM_COLOR}; border: none; background: transparent; font-family: {_FONT_BODY};")
 
     # ── Slots ─────────────────────────────────────────────────────────────────
-
     def update_state(self, payload: dict) -> None:
-        """
-        Connected to AppSignals.state_updated.
-        payload = {"room": {...}, "exits": {direction: room_id}, "player": {...}}
-        """
         room  = payload["room"]
         exits = payload["exits"]
-
         self.lbl_room.setText(room["name"])
-
         if exits:
-            exits_text = "   |   ".join(
-                f"[{d.upper()}]  {name}" for d, name in exits.items()
-            )
+            self.lbl_exits.setText(f"Paths:  " + "  •  ".join(f"[{d.upper()}]" for d in exits.keys()))
         else:
-            exits_text = "(no exits)"
-        self.lbl_exits.setText(f"Exits Path:   {exits_text}")
-
-        # Room background image
-        bg_image = room.get("bg_image", "")
-        if bg_image:
-            self.update_bg_image(bg_image)
+            self.lbl_exits.setText("No Way Out.")
+            
+        if room.get("bg_image", ""):
+            self._image_widget.set_image(room["bg_image"])
 
     def set_status(self, text: str) -> None:
-        """Connected to status change signals."""
         self.lbl_status.setText(text)
-
+        
     def show_listening(self) -> None:
-        """Called when mic recording begins."""
-        self.lbl_status.setText("Listening...")
+        self.lbl_status.setText("••• Listening •••")
+        self.lbl_status.setStyleSheet(f"font-size: 13px; color: #00FFCC; font-style: italic; font-family: {_FONT_BODY};")
 
     def update_narration(self, text: str) -> None:
-        """Displays the full narration text. Persists until the next narration replaces it."""
+        self.lbl_status.setStyleSheet(f"font-size: 13px; color: {STATUS_COLOR}; font-style: italic; font-family: {_FONT_BODY};")
         self.lbl_narration.setText(text)
 
     def update_room_items(self, items: list[dict]) -> None:
-        """Update the room items row. Shows ATK/DEF stat inline."""
         if items:
-            parts = []
-            for i in items:
-                if i.get("type") == "weapon":
-                    parts.append(f"{i['name']}  (ATK {i.get('damage', 0)})")
-                elif i.get("type") == "armor":
-                    parts.append(f"{i['name']}  (DEF {i.get('defense', 0)})")
-                else:
-                    parts.append(i["name"])
+            parts = [f"Found: {i['name']}" for i in items]
             self.lbl_room_items.setText("  |  ".join(parts))
             self._items_row.setVisible(True)
         else:
-            self.lbl_room_items.setText("")
             self._items_row.setVisible(False)
 
     def show_monster_row(self, name: str, hp: int, max_hp: int) -> None:
-        """Show enemy name and HP in the monster row during combat."""
-        self.lbl_monster.setText(f"{name}   |   {hp}/{max_hp}")
+        self.lbl_monster.setText(f"⚔️ {name}  [ {hp}/{max_hp} HP ]")
         self._monster_row.setVisible(True)
 
     def hide_monster_row(self) -> None:
-        """Hide the monster row when combat ends."""
         self._monster_row.setVisible(False)
-        self.lbl_monster.setText("")
+
+    # ── Dashboard Slots ──
+    def update_player_hp(self, hp: int, max_hp: int) -> None:
+        self.lbl_ps_hp.setText(f"{hp}/{max_hp} HP")
+
+    def update_player_status(self, payload: dict) -> None:
+        equipped = payload.get("equipped", {})
+        bag = payload.get("bag", [])
+
+        w = equipped.get("weapon")
+        w_text = f"{w['name']} (ATK {w.get('damage', 0)})" if w else "[none]"
+        
+        armors = [f"{equipped[s]['name']}" for s in ("helmet", "suit", "legs", "shoes", "cloak", "shield") if equipped.get(s)]
+        a_text = ", ".join(armors) if armors else "[none]"
+        
+        self.lbl_ps_equip.setText(f"Weapon: {w_text}   |   Armor: {a_text}")
+        self.lbl_ps_bag.setText("Bag: " + ", ".join(i["name"] for i in bag) if bag else "Bag: Empty")

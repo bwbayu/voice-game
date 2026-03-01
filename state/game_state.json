@@ -17,15 +17,39 @@
   },
   "world": {
     "cleared_bosses": [],
-    "room_items": {},
+    "room_items": {
+      "a": [
+        "cracked_shield",
+        "leather_greaves",
+        "iron_helm"
+      ],
+      "b": [
+        "cursed_dagger",
+        "chain_mail",
+        "shadow_boots"
+      ],
+      "c": [
+        "prison_key",
+        "battle_axe",
+        "tattered_cloak"
+      ],
+      "d": [
+        "health_potion",
+        "iron_sword",
+        "bone_club"
+      ]
+    },
     "boss_hp": {},
     "monster_hp": {},
-    "monster_positions": {},
+    "monster_positions": {
+      "shade": "b",
+      "crawler": "c"
+    },
     "unlocked_rooms": []
   },
   "meta": {
     "theme": "dungeon",
     "difficulty": "medium",
-    "session_start": "2026-03-01T08:56:52.357495+00:00"
+    "session_start": "2026-03-01T10:25:45.190663+00:00"
   }
 }
